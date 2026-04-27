@@ -96,3 +96,10 @@ MERGE INTO exerciseguides (
 ('弯举', '徒手', '可用毛巾制造阻力做弯举，保持上臂稳定，控制离心。', ''),
 ('臂屈伸', '徒手', '椅上臂屈伸：双手撑住椅沿，身体下降时肘部向后，避免肩部前顶。', ''),
 ('水平拉', '徒手', '反向划船：抓住稳固桌边或低杠，胸口向支撑点靠近。', '');
+
+MERGE INTO fitnesscheckins (
+    username, checkin_date, duration_minutes, mood, note, created_at
+) KEY(username, checkin_date) VALUES
+('demo', CURRENT_DATE, 35, '状态不错', '完成了上肢训练，俯卧撑比上周稳定。', CURRENT_TIMESTAMP),
+('demo', DATEADD('DAY', -1, CURRENT_DATE), 25, '轻松', '做了核心训练和拉伸。', DATEADD('DAY', -1, CURRENT_TIMESTAMP)),
+('demo', DATEADD('DAY', -2, CURRENT_DATE), 40, '有挑战', '下肢训练比较累，休息时间需要拉长。', DATEADD('DAY', -2, CURRENT_TIMESTAMP));

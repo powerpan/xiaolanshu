@@ -8,13 +8,18 @@ import java.util.ArrayList;
 @Mapper
 public interface ArticleMapper {
 
-    @Select("SELECT * from articles WHERE title = #{title} AND topic = #{topic}")
+    @Select("SELECT * from articles " +
+            "WHERE (#{title} IS NULL OR #{title} = '' OR title LIKE CONCAT('%', #{title}, '%')) " +
+            "AND (#{topic} IS NULL OR #{topic} = '' OR topic LIKE CONCAT('%', #{topic}, '%')) " +
+            "ORDER BY articletime DESC")
     ArrayList<Article> getarticle(String title, String topic);
 
-    @Select("SELECT * from articles WHERE title = #{title}")
+    @Select("SELECT * from articles " +
+            "WHERE (#{title} IS NULL OR #{title} = '' OR title LIKE CONCAT('%', #{title}, '%')) " +
+            "ORDER BY articletime DESC")
     ArrayList<Article> getarticlewithouttopic(String title);
 
-    @Select("SELECT * from articles WHERE author = #{username}")
+    @Select("SELECT * from articles WHERE author = #{username} ORDER BY articletime DESC")
     ArrayList<Article> getmyarticle(String username);
 
     @Insert("INSERT into articles(title,content,author,topic,articletime) "+

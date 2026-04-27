@@ -97,3 +97,16 @@ CREATE TABLE IF NOT EXISTS exerciseguides (
 
 CREATE UNIQUE INDEX IF NOT EXISTS uk_exerciseguides_pattern_equipment
     ON exerciseguides(actionpattern, equipment);
+
+CREATE TABLE IF NOT EXISTS fitnesscheckins (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50) NOT NULL,
+    checkin_date DATE NOT NULL,
+    duration_minutes INT DEFAULT 0,
+    mood VARCHAR(50),
+    note TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_fitnesscheckins_username_date
+    ON fitnesscheckins(username, checkin_date);
