@@ -233,9 +233,6 @@ const splitGuideText = (value) => String(value || '')
   .filter(Boolean)
 
 const withExerciseMediaState = (item) => item ? { ...item, imageBroken: false } : null
-const markImageBroken = (item) => {
-  item.imageBroken = true
-}
 const markGuideImageBroken = () => {
   if (guideResult.value) guideResult.value.imageBroken = true
 }
@@ -317,7 +314,7 @@ const loadPlan = async (day = selectedDay.value) => {
     unwrap(api.get('/fitnessplan/getactiontask', { params })),
   ])
   splitMode.value = mode
-  actionTasks.value = (tasks || []).map(withExerciseMediaState)
+  actionTasks.value = tasks || []
 }
 
 const loadGuide = async () => {
@@ -958,22 +955,6 @@ onMounted(bootstrap)
           </div>
           <div class="task-grid">
             <article v-for="task in actionTasks" :key="`${task.actionPattern}-${task.description}`" class="task-card">
-              <div class="task-figure">
-                <img
-                  v-if="task.imageurl && !task.imageBroken"
-                  :src="task.imageurl"
-                  :alt="`${task.actionName || task.actionPattern}动作图`"
-                  loading="lazy"
-                  decoding="async"
-                  @error="markImageBroken(task)"
-                />
-                <div v-else class="task-placeholder">
-                  <el-icon><Guide /></el-icon>
-                </div>
-                <a v-if="task.imageSourceUrl" class="image-source" :href="task.imageSourceUrl" target="_blank" rel="noreferrer">
-                  图片来源<span v-if="task.imageCredit"> · {{ task.imageCredit }}</span>
-                </a>
-              </div>
               <div class="task-body">
                 <span>{{ task.actionPattern }}</span>
                 <h3>{{ task.actionName || task.actionPattern }}</h3>
@@ -2076,25 +2057,6 @@ onMounted(bootstrap)
   box-shadow: 0 24px 58px rgba(31, 49, 42, 0.13);
 }
 
-.task-figure {
-  position: relative;
-  min-height: 190px;
-  background:
-    linear-gradient(135deg, #eef5ef, #f7f1df),
-    repeating-linear-gradient(90deg, rgba(35, 66, 58, 0.07) 0 1px, transparent 1px 38px);
-  overflow: hidden;
-}
-
-.task-figure img {
-  width: 100%;
-  height: 100%;
-  min-height: 190px;
-  display: block;
-  object-fit: contain;
-  transition: transform 360ms ease, filter 360ms ease;
-}
-
-.task-card:hover .task-figure img,
 .result-media:hover img {
   transform: scale(1.035);
   filter: saturate(1.08) contrast(1.02);
