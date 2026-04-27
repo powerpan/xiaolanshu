@@ -8,7 +8,8 @@ import org.apache.ibatis.annotations.Select;
 public interface ExerciseGuideMapper {
 
     @Select("SELECT id, actionpattern AS \"actionPattern\", actionname AS \"actionName\", " +
-            "equipment, description, steps, tips, imageurl FROM exerciseguides " +
+            "equipment, description, steps, tips, imageurl, imagecredit AS \"imageCredit\", " +
+            "imagesourceurl AS \"imageSourceUrl\" FROM exerciseguides " +
             "WHERE actionpattern = #{actionPattern} " +
             "AND (equipment = #{equipment} OR equipment = '徒手') " +
             "ORDER BY CASE WHEN equipment = #{equipment} THEN 0 ELSE 1 END " +

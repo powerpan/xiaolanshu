@@ -12,4 +12,6 @@ public class ExerciseGuide {
     private String steps; //执行步骤
     private String tips; //训练要点
     private String imageurl;//图片路径
+    private String imageCredit;//图片署名
+    private String imageSourceUrl;//图片来源链接
 }

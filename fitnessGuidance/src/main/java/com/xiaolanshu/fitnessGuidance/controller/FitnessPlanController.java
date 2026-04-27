@@ -147,6 +147,8 @@ public class FitnessPlanController {
                 task.setSteps(exerciseGuide.getSteps());
                 task.setTips(exerciseGuide.getTips());
                 task.setImageurl(exerciseGuide.getImageurl());
+                task.setImageCredit(exerciseGuide.getImageCredit());
+                task.setImageSourceUrl(exerciseGuide.getImageSourceUrl());
                 if (task.getDescription() == null || task.getDescription().isBlank()) {
                     task.setDescription(exerciseGuide.getDescription());
                 }

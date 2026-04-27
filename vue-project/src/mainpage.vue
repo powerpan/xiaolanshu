@@ -232,6 +232,14 @@ const splitGuideText = (value) => String(value || '')
   .map((item) => item.trim())
   .filter(Boolean)
 
+const withExerciseMediaState = (item) => item ? { ...item, imageBroken: false } : null
+const markImageBroken = (item) => {
+  item.imageBroken = true
+}
+const markGuideImageBroken = () => {
+  if (guideResult.value) guideResult.value.imageBroken = true
+}
+
 const readingMinutes = (value) => Math.max(1, Math.ceil(String(value || '').length / 360))
 
 const topicTone = (topic = '') => {
@@ -309,16 +317,17 @@ const loadPlan = async (day = selectedDay.value) => {
     unwrap(api.get('/fitnessplan/getactiontask', { params })),
   ])
   splitMode.value = mode
-  actionTasks.value = tasks || []
+  actionTasks.value = (tasks || []).map(withExerciseMediaState)
 }
 
 const loadGuide = async () => {
-  guideResult.value = await unwrap(api.get('/exerciseguide/getexerciseguide', {
+  const result = await unwrap(api.get('/exerciseguide/getexerciseguide', {
     params: withToken({
       actionPattern: guideForm.actionPattern,
       equipment: guideForm.equipment,
     }),
   }))
+  guideResult.value = withExerciseMediaState(result)
 }
 
 const loadCheckin = async () => {
@@ -950,10 +959,20 @@ onMounted(bootstrap)
           <div class="task-grid">
             <article v-for="task in actionTasks" :key="`${task.actionPattern}-${task.description}`" class="task-card">
               <div class="task-figure">
-                <img v-if="task.imageurl" :src="task.imageurl" :alt="`${task.actionName || task.actionPattern}动作图`" />
+                <img
+                  v-if="task.imageurl && !task.imageBroken"
+                  :src="task.imageurl"
+                  :alt="`${task.actionName || task.actionPattern}动作图`"
+                  loading="lazy"
+                  decoding="async"
+                  @error="markImageBroken(task)"
+                />
                 <div v-else class="task-placeholder">
                   <el-icon><Guide /></el-icon>
                 </div>
+                <a v-if="task.imageSourceUrl" class="image-source" :href="task.imageSourceUrl" target="_blank" rel="noreferrer">
+                  图片来源<span v-if="task.imageCredit"> · {{ task.imageCredit }}</span>
+                </a>
               </div>
               <div class="task-body">
                 <span>{{ task.actionPattern }}</span>
@@ -998,7 +1017,22 @@ onMounted(bootstrap)
           <label><span>器材</span><el-select v-model="guideForm.equipment"><el-option v-for="item in equipments" :key="item" :label="item" :value="item" /></el-select></label>
         </div>
         <div v-if="guideResult" class="result-block">
-          <img v-if="guideResult.imageurl" :src="guideResult.imageurl" :alt="`${guideResult.actionName || guideResult.actionPattern}动作图`" />
+          <div class="result-media">
+            <img
+              v-if="guideResult.imageurl && !guideResult.imageBroken"
+              :src="guideResult.imageurl"
+              :alt="`${guideResult.actionName || guideResult.actionPattern}动作图`"
+              loading="lazy"
+              decoding="async"
+              @error="markGuideImageBroken"
+            />
+            <div v-else class="task-placeholder">
+              <el-icon><Guide /></el-icon>
+            </div>
+            <a v-if="guideResult.imageSourceUrl" class="image-source" :href="guideResult.imageSourceUrl" target="_blank" rel="noreferrer">
+              图片来源<span v-if="guideResult.imageCredit"> · {{ guideResult.imageCredit }}</span>
+            </a>
+          </div>
           <h3>{{ guideResult.actionName || guideResult.actionPattern }} · {{ guideResult.equipment }}</h3>
           <p>{{ guideResult.description || '暂无说明' }}</p>
           <div class="guide-columns">
@@ -1301,7 +1335,8 @@ onMounted(bootstrap)
   min-height: 100vh;
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr);
-  background: #f5f7f2;
+  background:
+    linear-gradient(135deg, #f7f8f1 0%, #eef5ef 42%, #f7f2e6 100%);
   color: #18221d;
 }
 
@@ -1310,11 +1345,14 @@ onMounted(bootstrap)
   top: 0;
   height: 100vh;
   padding: 24px;
-  background: #102a28;
+  background:
+    linear-gradient(150deg, rgba(16, 42, 40, 0.96), rgba(21, 77, 67, 0.96)),
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0 1px, transparent 1px 18px);
   color: #fff;
   display: flex;
   flex-direction: column;
   gap: 26px;
+  box-shadow: 20px 0 55px rgba(21, 42, 36, 0.14);
 }
 
 .brand {
@@ -1329,9 +1367,10 @@ onMounted(bootstrap)
   display: grid;
   place-items: center;
   border-radius: 8px;
-  background: #f2c35d;
+  background: linear-gradient(135deg, #ffe29a, #f2c35d 50%, #85d4ff);
   color: #17211c;
   font-weight: 900;
+  box-shadow: 0 12px 28px rgba(242, 195, 93, 0.28);
 }
 
 .brand strong,
@@ -1358,6 +1397,7 @@ onMounted(bootstrap)
 }
 
 .nav-list button {
+  position: relative;
   width: 100%;
   min-height: 42px;
   padding: 0 12px;
@@ -1371,12 +1411,29 @@ onMounted(bootstrap)
   display: flex;
   align-items: center;
   gap: 10px;
+  overflow: hidden;
+  transition: transform 180ms ease, background 180ms ease, color 180ms ease;
+}
+
+.nav-list button::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.18), transparent);
+  transform: translateX(-120%);
+  transition: transform 420ms ease;
 }
 
 .nav-list button.active,
 .nav-list button:hover {
   background: rgba(255, 255, 255, 0.12);
   color: #fff;
+  transform: translateX(4px);
+}
+
+.nav-list button.active::after,
+.nav-list button:hover::after {
+  transform: translateX(120%);
 }
 
 .sidebar-user {
@@ -1469,9 +1526,12 @@ onMounted(bootstrap)
   border-radius: 8px;
   background: #fff;
   box-shadow: 0 14px 40px rgba(31, 49, 42, 0.06);
+  animation: surface-in 520ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
 .hero-stage {
+  position: relative;
+  isolation: isolate;
   min-height: 310px;
   display: grid;
   grid-template-columns: minmax(0, 1.05fr) minmax(360px, 0.95fr);
@@ -1479,11 +1539,30 @@ onMounted(bootstrap)
   align-items: stretch;
   overflow: hidden;
   background:
-    linear-gradient(105deg, #123b36 0%, #1b5b4e 58%, #f2c35d 180%);
+    linear-gradient(105deg, #123b36 0%, #1b5b4e 46%, #2e8d7a 86%, #f2c35d 150%);
+  background-size: 180% 180%;
   color: #fff;
+  animation: surface-in 520ms cubic-bezier(0.2, 0.8, 0.2, 1) both, hero-flow 9s ease-in-out infinite alternate;
+}
+
+.hero-stage::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background:
+    linear-gradient(120deg, rgba(255, 255, 255, 0.12), transparent 38%),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.08) 0 1px, transparent 1px 54px),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.06) 0 1px, transparent 1px 54px);
+  opacity: 0.7;
+  pointer-events: none;
+  transform: translate3d(0, 0, 0);
+  animation: grid-drift 14s linear infinite;
 }
 
 .hero-copy {
+  position: relative;
+  z-index: 1;
   padding: 36px;
   display: grid;
   align-content: center;
@@ -1507,6 +1586,8 @@ onMounted(bootstrap)
 }
 
 .hero-visual {
+  position: relative;
+  z-index: 1;
   min-height: 300px;
   display: grid;
   align-content: center;
@@ -1524,6 +1605,15 @@ onMounted(bootstrap)
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.12);
   backdrop-filter: blur(12px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  transition: transform 220ms ease, background 220ms ease;
+}
+
+.visual-ring-card:hover,
+.visual-data-grid:hover,
+.visual-bars-card:hover {
+  transform: translateY(-3px);
+  background: rgba(255, 255, 255, 0.16);
 }
 
 .visual-ring-card {
@@ -1542,6 +1632,8 @@ onMounted(bootstrap)
   display: grid;
   place-items: center;
   background: conic-gradient(#85d4ff var(--progress), rgba(255, 255, 255, 0.18) 0);
+  filter: drop-shadow(0 16px 26px rgba(133, 212, 255, 0.18));
+  animation: ring-breathe 2.8s ease-in-out infinite;
 }
 
 .progress-ring::after {
@@ -1619,7 +1711,14 @@ onMounted(bootstrap)
   min-width: 18px;
   border-radius: 8px 8px 0 0;
   background: linear-gradient(180deg, #f2c35d, #85d4ff);
+  transform-origin: bottom;
+  animation: bar-rise 720ms cubic-bezier(0.18, 0.78, 0.24, 1) both;
 }
+
+.mini-bars i:nth-child(2) { animation-delay: 80ms; }
+.mini-bars i:nth-child(3) { animation-delay: 150ms; }
+.mini-bars i:nth-child(4) { animation-delay: 220ms; }
+.mini-bars i:nth-child(5) { animation-delay: 290ms; }
 
 .visual-empty {
   margin: 0;
@@ -1648,6 +1747,24 @@ onMounted(bootstrap)
   display: grid;
   align-content: center;
   border-left-width: 5px;
+  position: relative;
+  overflow: hidden;
+  transition: transform 220ms ease, box-shadow 220ms ease;
+}
+
+.metric-card::after {
+  content: "";
+  position: absolute;
+  inset: auto 18px 14px 18px;
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #2c8f72, #85d4ff, #f2c35d);
+  opacity: 0.34;
+}
+
+.metric-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 18px 45px rgba(31, 49, 42, 0.1);
 }
 
 .metric-card.green { border-left-color: #2c8f72; }
@@ -1750,12 +1867,19 @@ onMounted(bootstrap)
 
 .segmented button {
   cursor: pointer;
+  transition: transform 180ms ease, border-color 180ms ease, background 180ms ease, color 180ms ease;
 }
 
 .segmented button.active {
   background: #174f42;
   border-color: #174f42;
   color: #fff;
+  box-shadow: 0 10px 24px rgba(23, 79, 66, 0.18);
+}
+
+.segmented button:hover {
+  transform: translateY(-2px);
+  border-color: #9cc8b7;
 }
 
 .progress-rows {
@@ -1784,10 +1908,22 @@ onMounted(bootstrap)
 }
 
 .progress-rows b {
+  position: relative;
   display: block;
   height: 100%;
   border-radius: inherit;
   background: linear-gradient(90deg, #2c8f72, #85d4ff);
+  overflow: hidden;
+  transition: width 520ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.progress-rows b::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+  transform: translateX(-100%);
+  animation: progress-sheen 2.4s ease-in-out infinite;
 }
 
 .feed-list,
@@ -1808,6 +1944,16 @@ onMounted(bootstrap)
   gap: 10px;
   cursor: pointer;
   background: #fcfdf9;
+  transition: transform 190ms ease, border-color 190ms ease, box-shadow 190ms ease, background 190ms ease;
+}
+
+.feed-row:hover,
+.notice-list article:hover,
+.related-panel button:hover {
+  transform: translateY(-3px);
+  border-color: #bfd7cd;
+  background: #fff;
+  box-shadow: 0 16px 30px rgba(31, 49, 42, 0.08);
 }
 
 .feed-row {
@@ -1883,6 +2029,14 @@ onMounted(bootstrap)
   display: grid;
   gap: 12px;
   cursor: pointer;
+  transition: transform 220ms ease, border-color 220ms ease, box-shadow 220ms ease;
+}
+
+.notice-card:hover,
+.article-card:hover {
+  transform: translateY(-5px);
+  border-color: #b8d3c8;
+  box-shadow: 0 22px 50px rgba(31, 49, 42, 0.12);
 }
 
 .article-card footer {
@@ -1913,11 +2067,22 @@ onMounted(bootstrap)
   padding: 0;
   overflow: hidden;
   cursor: default;
+  box-shadow: 0 14px 34px rgba(31, 49, 42, 0.07);
+}
+
+.task-card:hover {
+  transform: translateY(-5px);
+  border-color: #b7d1c7;
+  box-shadow: 0 24px 58px rgba(31, 49, 42, 0.13);
 }
 
 .task-figure {
+  position: relative;
   min-height: 190px;
-  background: #eef5ef;
+  background:
+    linear-gradient(135deg, #eef5ef, #f7f1df),
+    repeating-linear-gradient(90deg, rgba(35, 66, 58, 0.07) 0 1px, transparent 1px 38px);
+  overflow: hidden;
 }
 
 .task-figure img {
@@ -1926,6 +2091,13 @@ onMounted(bootstrap)
   min-height: 190px;
   display: block;
   object-fit: contain;
+  transition: transform 360ms ease, filter 360ms ease;
+}
+
+.task-card:hover .task-figure img,
+.result-media:hover img {
+  transform: scale(1.035);
+  filter: saturate(1.08) contrast(1.02);
 }
 
 .task-placeholder {
@@ -1934,6 +2106,31 @@ onMounted(bootstrap)
   place-items: center;
   color: #8aa097;
   font-size: 42px;
+}
+
+.image-source {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  max-width: calc(100% - 20px);
+  border: 1px solid rgba(255, 255, 255, 0.62);
+  border-radius: 8px;
+  padding: 6px 9px;
+  background: rgba(23, 42, 36, 0.72);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  backdrop-filter: blur(10px);
+  transition: transform 180ms ease, background 180ms ease;
+}
+
+.image-source:hover {
+  transform: translateY(-2px);
+  background: rgba(23, 42, 36, 0.88);
 }
 
 .task-body {
@@ -2068,6 +2265,7 @@ onMounted(bootstrap)
   color: #31443c;
   font-weight: 800;
   cursor: pointer;
+  transition: transform 190ms ease, border-color 190ms ease, box-shadow 190ms ease, background 190ms ease;
 }
 
 .timeline-row {
@@ -2096,6 +2294,16 @@ onMounted(bootstrap)
   margin-top: 22px;
 }
 
+.result-media {
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  background:
+    linear-gradient(135deg, #eef5ef, #f7f1df),
+    repeating-linear-gradient(90deg, rgba(35, 66, 58, 0.07) 0 1px, transparent 1px 38px);
+}
+
 .result-block h3,
 .reader-box h3 {
   margin: 0 0 10px;
@@ -2111,8 +2319,9 @@ onMounted(bootstrap)
   max-height: 360px;
   object-fit: contain;
   border-radius: 8px;
-  margin-bottom: 16px;
-  background: #eef5ef;
+  display: block;
+  background: transparent;
+  transition: transform 360ms ease, filter 360ms ease;
 }
 
 .clean-list {
@@ -2146,6 +2355,59 @@ onMounted(bootstrap)
   justify-content: flex-end;
   gap: 8px;
   margin-top: 12px;
+}
+
+@keyframes surface-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes hero-flow {
+  from { background-position: 0% 50%; }
+  to { background-position: 100% 50%; }
+}
+
+@keyframes grid-drift {
+  from { background-position: 0 0, 0 0, 0 0; }
+  to { background-position: 0 0, 108px 0, 0 108px; }
+}
+
+@keyframes ring-breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.035); }
+}
+
+@keyframes bar-rise {
+  from {
+    transform: scaleY(0.2);
+    opacity: 0.35;
+  }
+  to {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+
+@keyframes progress-sheen {
+  0% { transform: translateX(-100%); }
+  55%, 100% { transform: translateX(100%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 @media (max-width: 1280px) {
@@ -2217,6 +2479,16 @@ onMounted(bootstrap)
     grid-template-columns: 1fr;
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .panel-heading > .el-button,
+  .topbar-actions,
+  .hero-actions {
+    width: 100%;
+  }
+
+  .panel-heading > .el-button {
+    justify-content: center;
   }
 
   .metric-grid,

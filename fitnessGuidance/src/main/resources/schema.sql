@@ -95,12 +95,16 @@ CREATE TABLE IF NOT EXISTS exerciseguides (
     description TEXT,
     steps TEXT,
     tips TEXT,
-    imageurl VARCHAR(1000)
+    imageurl VARCHAR(1000),
+    imagecredit VARCHAR(200),
+    imagesourceurl VARCHAR(1000)
 );
 
 ALTER TABLE exerciseguides ADD COLUMN IF NOT EXISTS actionname VARCHAR(100);
 ALTER TABLE exerciseguides ADD COLUMN IF NOT EXISTS steps TEXT;
 ALTER TABLE exerciseguides ADD COLUMN IF NOT EXISTS tips TEXT;
+ALTER TABLE exerciseguides ADD COLUMN IF NOT EXISTS imagecredit VARCHAR(200);
+ALTER TABLE exerciseguides ADD COLUMN IF NOT EXISTS imagesourceurl VARCHAR(1000);
 
 CREATE UNIQUE INDEX IF NOT EXISTS uk_exerciseguides_pattern_equipment
     ON exerciseguides(actionpattern, equipment);
