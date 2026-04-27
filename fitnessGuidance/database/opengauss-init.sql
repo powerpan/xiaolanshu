@@ -1,0 +1,282 @@
+-- 小蓝书健身指导系统 openGauss 初始化脚本
+-- 适用于新建或可重置的 openGauss 数据库。执行前请确认目标库中的同名表可以被删除。
+
+DROP TABLE IF EXISTS fitnesscheckins;
+DROP TABLE IF EXISTS exerciseguides;
+DROP TABLE IF EXISTS actiondetails;
+DROP TABLE IF EXISTS trainingparams;
+DROP TABLE IF EXISTS daytrains;
+DROP TABLE IF EXISTS fitnessplanrules;
+DROP TABLE IF EXISTS articles;
+DROP TABLE IF EXISTS tempnotices;
+DROP TABLE IF EXISTS notices;
+DROP TABLE IF EXISTS userprofiles;
+DROP TABLE IF EXISTS users;
+
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    nickname VARCHAR(50),
+    password VARCHAR(100) NOT NULL,
+    userpic VARCHAR(1000),
+    createtime TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    registered BOOLEAN DEFAULT FALSE,
+    identity VARCHAR(20) DEFAULT 'user',
+    specialty VARCHAR(200),
+    height DOUBLE PRECISION,
+    weight DOUBLE PRECISION
+);
+
+CREATE TABLE userprofiles (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    fitnessgoal VARCHAR(50) NOT NULL,
+    weeklyfrequency INT NOT NULL,
+    equipment VARCHAR(50) NOT NULL,
+    exlevel VARCHAR(50) NOT NULL
+);
+
+CREATE TABLE notices (
+    id SERIAL PRIMARY KEY,
+    title VARCHAR(200) NOT NULL,
+    content TEXT,
+    author VARCHAR(50),
+    noticetime TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE tempnotices (
+    id SERIAL PRIMARY KEY,
+    title VARCHAR(200) NOT NULL,
+    content TEXT,
+    author VARCHAR(50),
+    tempnoticetime TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE articles (
+    id SERIAL PRIMARY KEY,
+    title VARCHAR(200) NOT NULL,
+    content TEXT,
+    author VARCHAR(50),
+    topic VARCHAR(100),
+    articletime TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE fitnessplanrules (
+    id SERIAL PRIMARY KEY,
+    fitnessgoal VARCHAR(50) NOT NULL,
+    weeklyfrequency INT NOT NULL,
+    splitmode TEXT NOT NULL
+);
+
+CREATE UNIQUE INDEX uk_fitnessplanrules_goal_frequency
+    ON fitnessplanrules(fitnessgoal, weeklyfrequency);
+
+CREATE TABLE daytrains (
+    id SERIAL PRIMARY KEY,
+    splitmode VARCHAR(100) NOT NULL UNIQUE,
+    actionpattern TEXT NOT NULL
+);
+
+CREATE TABLE trainingparams (
+    id SERIAL PRIMARY KEY,
+    actionpattern VARCHAR(100) NOT NULL,
+    exlevel VARCHAR(50) NOT NULL,
+    minsets INT NOT NULL,
+    maxsets INT NOT NULL,
+    minreps INT NOT NULL,
+    maxreps INT NOT NULL,
+    minrestseconds INT NOT NULL,
+    maxrestseconds INT NOT NULL
+);
+
+CREATE UNIQUE INDEX uk_trainingparams_pattern_level
+    ON trainingparams(actionpattern, exlevel);
+
+CREATE TABLE actiondetails (
+    id SERIAL PRIMARY KEY,
+    actionpattern VARCHAR(100) NOT NULL,
+    equipment VARCHAR(50) NOT NULL,
+    description TEXT
+);
+
+CREATE UNIQUE INDEX uk_actiondetails_pattern_equipment
+    ON actiondetails(actionpattern, equipment);
+
+CREATE TABLE exerciseguides (
+    id SERIAL PRIMARY KEY,
+    actionpattern VARCHAR(100) NOT NULL,
+    actionname VARCHAR(100),
+    equipment VARCHAR(50) NOT NULL,
+    description TEXT,
+    steps TEXT,
+    tips TEXT,
+    imageurl VARCHAR(1000),
+    imagecredit VARCHAR(200),
+    imagesourceurl VARCHAR(1000)
+);
+
+CREATE UNIQUE INDEX uk_exerciseguides_pattern_equipment
+    ON exerciseguides(actionpattern, equipment);
+
+CREATE TABLE fitnesscheckins (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(50) NOT NULL,
+    checkin_date DATE NOT NULL,
+    duration_minutes INT DEFAULT 0,
+    mood VARCHAR(50),
+    note TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE UNIQUE INDEX uk_fitnesscheckins_username_date
+    ON fitnesscheckins(username, checkin_date);
+
+INSERT INTO users (
+    username, nickname, password, userpic, createtime, registered, identity, specialty, height, weight
+) VALUES
+('admin', '管理员', 'admin123', '', CURRENT_TIMESTAMP, TRUE, 'ADMIN', '力量训练', 175, 70),
+('demo', '演示用户', 'demo123', '', CURRENT_TIMESTAMP, TRUE, 'user', '跑步和徒手训练', 168, 62);
+
+INSERT INTO userprofiles (
+    username, fitnessgoal, weeklyfrequency, equipment, exlevel
+) VALUES
+('admin', '保持健康', 3, '徒手', '新手'),
+('demo', '保持健康', 3, '徒手', '新手');
+
+INSERT INTO notices (
+    id, title, content, author, noticetime
+) VALUES
+(1, '欢迎使用小蓝书健身指导系统', '本地演示数据库已经初始化，可以使用 demo/demo123 或 admin/admin123 登录体验。普通用户会进入训练和内容阅读视图，管理员可以在内容管理中维护公告、文章和用户。', 'admin', CURRENT_TIMESTAMP),
+(2, '本周训练建议：先稳定，再加量', '如果你刚开始恢复训练，本周优先完成计划内次数，不需要追求额外加练。每次训练前做 5 到 8 分钟热身，训练后记录状态，连续两周稳定后再逐步增加组数。', 'admin', CURRENT_TIMESTAMP - INTERVAL '1 day');
+
+INSERT INTO articles (
+    id, title, content, author, topic, articletime
+) VALUES
+(1, '新手训练前的三个提醒', '刚开始训练时，最容易被忽略的是训练前后的准备，而不是动作本身。第一，先热身。用 5 到 8 分钟让关节和心率进入状态，肩、髋、膝和踝都要动起来。第二，把动作速度放慢。新手阶段先让身体记住正确轨迹，下降、停顿、发力都要能控制。第三，训练后记录身体反馈。今天哪里累，哪个动作不稳，休息是否足够，这些记录会帮助你下次更稳地调整。稳定执行比一次练很多更重要。', 'admin', '新手入门', CURRENT_TIMESTAMP),
+(2, '徒手训练也能做好基础力量', '没有器械并不代表训练质量低。深蹲、俯卧撑、平板支撑和臀桥可以覆盖推、蹲、核心和髋伸展等基础动作模式。建议先从三轮循环开始，每个动作保持能够控制的次数，动作间休息 45 到 75 秒。徒手训练的关键不是把次数堆到极限，而是保持身体线条、关节方向和呼吸节奏。等到动作稳定后，再通过增加组数、放慢离心或缩短休息来提高难度。', 'admin', '徒手训练', CURRENT_TIMESTAMP - INTERVAL '1 day'),
+(3, '减脂期怎么安排饮食和训练', '减脂不是把食物砍到越少越好，而是在可持续的热量缺口里保持训练质量。每餐先保证蛋白质，再安排主食和蔬菜。训练日可以把更多碳水放在训练前后，休息日保持蔬菜和饮水。训练上建议保留力量训练，它能帮助你维持肌肉和基础代谢。体重每天波动很正常，更应该看两周趋势、围度和精神状态。', 'admin', '饮食策略', CURRENT_TIMESTAMP - INTERVAL '2 days');
+
+INSERT INTO fitnessplanrules (
+    fitnessgoal, weeklyfrequency, splitmode
+) VALUES
+('保持健康', 1, '["全身训练"]'),
+('保持健康', 2, '["上肢训练","下肢与核心"]'),
+('保持健康', 3, '["上肢训练","下肢训练","核心与灵活性"]'),
+('保持健康', 4, '["上肢推","下肢训练","上肢拉","核心与灵活性"]'),
+('保持健康', 5, '["上肢推","下肢训练","上肢拉","核心训练","全身轻量"]'),
+('保持健康', 6, '["上肢推","下肢训练","上肢拉","核心训练","全身轻量","恢复训练"]'),
+('增肌', 1, '["全身训练"]'),
+('增肌', 2, '["上肢推","下肢训练"]'),
+('增肌', 3, '["上肢推","下肢训练","上肢拉"]'),
+('增肌', 4, '["上肢推","下肢训练","上肢拉","核心训练"]'),
+('增肌', 5, '["上肢推","下肢训练","上肢拉","核心训练","全身轻量"]'),
+('增肌', 6, '["上肢推","下肢训练","上肢拉","核心训练","全身轻量","恢复训练"]'),
+('减脂', 1, '["全身训练"]'),
+('减脂', 2, '["全身训练","核心训练"]'),
+('减脂', 3, '["全身训练","核心训练","全身轻量"]'),
+('减脂', 4, '["全身训练","下肢与核心","上肢训练","核心训练"]'),
+('减脂', 5, '["全身训练","下肢与核心","上肢训练","核心训练","全身轻量"]'),
+('减脂', 6, '["全身训练","下肢与核心","上肢训练","核心训练","全身轻量","恢复训练"]'),
+('塑形', 1, '["全身训练"]'),
+('塑形', 2, '["上肢训练","下肢与核心"]'),
+('塑形', 3, '["上肢训练","下肢与核心","全身轻量"]'),
+('塑形', 4, '["上肢训练","下肢与核心","上肢拉","核心训练"]'),
+('塑形', 5, '["上肢训练","下肢与核心","上肢拉","核心训练","全身轻量"]'),
+('塑形', 6, '["上肢训练","下肢与核心","上肢拉","核心训练","全身轻量","恢复训练"]'),
+('提升力量', 1, '["全身训练"]'),
+('提升力量', 2, '["上肢推","下肢训练"]'),
+('提升力量', 3, '["上肢推","下肢训练","上肢拉"]'),
+('提升力量', 4, '["上肢推","下肢训练","上肢拉","核心训练"]'),
+('提升力量', 5, '["上肢推","下肢训练","上肢拉","核心训练","全身轻量"]'),
+('提升力量', 6, '["上肢推","下肢训练","上肢拉","核心训练","全身轻量","恢复训练"]');
+
+INSERT INTO daytrains (
+    splitmode, actionpattern
+) VALUES
+('全身训练', '["水平推","下肢蹲","核心"]'),
+('上肢训练', '["水平推","水平拉","垂直推"]'),
+('下肢与核心', '["下肢蹲","下肢硬拉","核心"]'),
+('下肢训练', '["下肢蹲","下肢硬拉"]'),
+('核心与灵活性', '["核心"]'),
+('上肢推', '["水平推","垂直推","臂屈伸"]'),
+('上肢拉', '["水平拉","垂直拉","弯举"]'),
+('核心训练', '["核心"]'),
+('全身轻量', '["水平推","下肢蹲","核心"]'),
+('恢复训练', '["核心"]');
+
+INSERT INTO trainingparams (
+    actionpattern, exlevel, minsets, maxsets, minreps, maxreps, minrestseconds, maxrestseconds
+) VALUES
+('水平推', '新手', 2, 3, 8, 12, 60, 90),
+('垂直拉', '新手', 2, 3, 6, 10, 60, 90),
+('下肢蹲', '新手', 2, 4, 10, 15, 60, 90),
+('核心', '新手', 2, 3, 20, 40, 45, 75),
+('下肢硬拉', '新手', 2, 3, 8, 12, 75, 120),
+('垂直推', '新手', 2, 3, 8, 12, 60, 90),
+('弯举', '新手', 2, 3, 10, 15, 45, 75),
+('臂屈伸', '新手', 2, 3, 8, 12, 60, 90),
+('水平拉', '新手', 2, 3, 8, 12, 60, 90),
+('水平推', '进阶', 3, 5, 8, 15, 60, 120),
+('垂直拉', '进阶', 3, 5, 8, 12, 60, 120),
+('下肢蹲', '进阶', 3, 5, 8, 15, 75, 120),
+('核心', '进阶', 3, 5, 30, 60, 45, 90),
+('下肢硬拉', '进阶', 3, 5, 8, 12, 90, 150),
+('垂直推', '进阶', 3, 5, 8, 12, 60, 120),
+('弯举', '进阶', 3, 4, 10, 15, 45, 90),
+('臂屈伸', '进阶', 3, 4, 8, 15, 60, 120),
+('水平拉', '进阶', 3, 5, 8, 12, 60, 120),
+('水平推', '熟练', 4, 5, 8, 15, 60, 110),
+('垂直拉', '熟练', 4, 5, 8, 12, 60, 110),
+('下肢蹲', '熟练', 4, 5, 8, 15, 75, 120),
+('核心', '熟练', 4, 5, 35, 70, 40, 80),
+('下肢硬拉', '熟练', 4, 5, 8, 12, 90, 140),
+('垂直推', '熟练', 4, 5, 8, 12, 60, 110),
+('弯举', '熟练', 3, 5, 10, 15, 45, 80),
+('臂屈伸', '熟练', 3, 5, 8, 15, 60, 100),
+('水平拉', '熟练', 4, 5, 8, 12, 60, 110),
+('水平推', '资深', 4, 6, 6, 15, 60, 120),
+('垂直拉', '资深', 4, 6, 6, 12, 60, 120),
+('下肢蹲', '资深', 4, 6, 6, 15, 90, 150),
+('核心', '资深', 4, 6, 40, 90, 35, 75),
+('下肢硬拉', '资深', 4, 6, 6, 12, 90, 160),
+('垂直推', '资深', 4, 6, 6, 12, 60, 120),
+('弯举', '资深', 4, 5, 8, 15, 45, 90),
+('臂屈伸', '资深', 4, 5, 6, 15, 60, 120),
+('水平拉', '资深', 4, 6, 6, 12, 60, 120);
+
+INSERT INTO actiondetails (
+    actionpattern, equipment, description
+) VALUES
+('水平推', '徒手', '可选择俯卧撑。收紧核心，身体保持一条直线，下降时肘部自然向后，推起时不要耸肩。'),
+('垂直拉', '徒手', '可用门框毛巾辅助下拉或弹力带替代。保持肩胛下沉，先控制动作质量。'),
+('下肢蹲', '徒手', '可选择徒手深蹲。脚跟踩稳，膝盖顺着脚尖方向移动，起身时收紧臀部。'),
+('核心', '徒手', '可选择平板支撑或死虫。保持腰腹稳定，不要塌腰，呼吸平稳。'),
+('下肢硬拉', '徒手', '可选择早安式髋铰链。髋部向后坐，背部保持自然中立，感受臀腿后侧发力。'),
+('垂直推', '徒手', '可选择 Pike Push-up。臀部抬高，头部向地面方向下降，推起时保持肩部稳定。'),
+('弯举', '徒手', '徒手弯举可用毛巾等阻力辅助。动作慢一些，重点感受肱二头肌收缩。'),
+('臂屈伸', '徒手', '可选择椅上臂屈伸。肩膀远离耳朵，肘部向后弯曲，动作幅度量力而行。'),
+('水平拉', '徒手', '可选择桌下反向划船。胸口靠近支撑面，肩胛向后收，身体保持稳定。');
+
+INSERT INTO exerciseguides (
+    actionpattern, actionname, equipment, description, steps, tips, imageurl, imagecredit, imagesourceurl
+) VALUES
+('水平推', '俯卧撑', '徒手', '训练胸、肩前束和肱三头肌的基础推类动作。重点是身体保持一条直线，推起时不要耸肩。', '双手略宽于肩，手掌在胸口两侧|脚尖踩地，收紧腹部和臀部|吸气下降到胸部接近地面|呼气推起，肘部不要完全锁死', '腰不要塌，肩胛保持稳定|如果标准俯卧撑困难，可以先做跪姿俯卧撑|下降速度慢一点，比追求次数更重要', '/exercise-guides/push-up.png', 'Everkinetic / Wikimedia Commons', 'https://commons.wikimedia.org/wiki/File:Push-up-1.png'),
+('垂直拉', '引体向上辅助', '徒手', '用引体向上动作理解垂直拉的发力路径；没有单杠时可用弹力带或毛巾模拟肩胛下沉和肘部下拉。', '先让肩膀远离耳朵，肩胛向下|肘部沿身体两侧向下拉，不要耸肩|有单杠时做辅助引体向上或离心下放|无单杠时用弹力带下拉或毛巾等长拉保持张力', '先找背阔肌收紧和肩胛下沉感觉|不要用腰后仰代偿|动作质量优先，宁可减少次数', '/exercise-guides/vertical-pull.jpg', 'PTPioneer / Wikimedia Commons', 'https://commons.wikimedia.org/wiki/File:Pull-ups_exercise_from_back.jpg'),
+('下肢蹲', '徒手深蹲', '徒手', '训练股四头肌、臀部和基础下肢控制能力。适合大多数训练计划作为下肢主动作。', '双脚与肩同宽，脚尖自然外展|臀部向后向下坐，膝盖跟随脚尖方向|下蹲到能稳定控制的位置|脚跟踩稳，呼气站起并收紧臀部', '膝盖不要内扣|背部保持自然挺直|宁可深度浅一点，也不要失去控制', '/exercise-guides/squat.png', 'Everkinetic / Wikimedia Commons', 'https://commons.wikimedia.org/wiki/File:Squats-1.png'),
+('核心', '平板支撑', '徒手', '训练腹部抗伸展能力，帮助稳定腰椎和提升整体动作质量。', '手肘位于肩膀正下方|脚尖踩地，身体从头到脚成一直线|收紧腹部和臀部|保持均匀呼吸直到规定时间', '不要塌腰或撅臀|脖子保持自然，不要抬头|腰酸明显时先缩短时间', '/exercise-guides/plank.jpg', 'Jaykayfit / Wikimedia Commons', 'https://commons.wikimedia.org/wiki/File:Plank.jpg'),
+('下肢硬拉', '髋铰链 / 罗马尼亚硬拉', '徒手', '练习髋关节主导的发力模式，强化臀腿后侧和硬拉动作基础；图片展示负重版本，徒手时保留同样的髋铰链轨迹。', '双脚与髋同宽，双手可放胸前|膝盖微屈，臀部向后推|背部保持中立，躯干前倾|感到臀腿后侧拉伸后，用臀部带动站起', '不是弯腰，而是髋向后折叠|全程保持背部自然平直|先练动作轨迹，再增加负重', '/exercise-guides/romanian-deadlift.png', 'Everkinetic / Wikimedia Commons', 'https://commons.wikimedia.org/wiki/File:Romanian-deadlift-1.png'),
+('垂直推', 'Pike 俯卧撑', '徒手', '偏向肩部和肱三头肌的垂直推训练，是徒手肩推的基础版本。', '双手撑地，臀部抬高形成倒 V|头部向双手之间下降|手掌推地，身体回到起始位|全程保持肩部稳定和核心收紧', '下降时肘部自然向后外侧|不要把重量全部压到脖子|难度过高可缩短动作幅度', '/exercise-guides/pike-push-up.gif', 'Danielflefil / Wikimedia Commons', 'https://commons.wikimedia.org/wiki/File:Pike_Push_Ups.gif'),
+('弯举', '毛巾 / 哑铃弯举', '徒手', '训练肱二头肌控制和手臂屈曲力量；无哑铃时用毛巾制造自我阻力，有哑铃时按图片动作路径完成弯举。', '双手抓住毛巾两端，一手提供向下阻力|另一手做弯举动作，上臂尽量贴近身体|顶端停顿一秒，感受肱二头肌收缩|慢慢放下并保持张力，左右手轮换', '阻力由自己控制，不要突然发力|上臂尽量固定在身体两侧|左右手都要完成同样组数', '/exercise-guides/biceps-curl.png', 'Everkinetic / Wikimedia Commons', 'https://commons.wikimedia.org/wiki/File:Biceps-curl-1.png'),
+('臂屈伸', '椅上臂屈伸', '徒手', '训练肱三头肌和肩部稳定能力，适合作为上肢推训练的辅助动作。', '双手撑在稳固椅沿，手指朝前|双脚踩地，身体靠近椅子|肘部向后弯曲让身体下降|手掌发力推回起始位', '肩膀远离耳朵|下降幅度以肩部舒服为准|椅子必须稳固，避免滑动', '/exercise-guides/bench-dips.png', 'Everkinetic / Wikimedia Commons', 'https://commons.wikimedia.org/wiki/File:Bench-dips-1.png'),
+('水平拉', '桌下反向划船', '徒手', '训练背部、肩胛控制和手臂拉力，是徒手水平拉的经典动作。', '仰卧在稳固桌边下方，双手抓住桌沿|身体保持直线，脚跟踩地|肩胛先向后收，再把胸口拉向桌沿|慢慢下降回到起始位', '桌子必须稳固可靠|不要耸肩拉脖子|身体越水平难度越高，可调整脚的位置', '/exercise-guides/inverted-row.jpg', 'Colossus Fitness / Wikimedia Commons', 'https://commons.wikimedia.org/wiki/File:Inverted_row.jpg'),
+('垂直推', '哑铃肩推', '哑铃', '用哑铃完成垂直推训练，重点是肩部稳定、核心收紧和手臂向上推举路径。', '坐姿或站姿保持躯干稳定|哑铃位于肩膀两侧，手腕保持中立|呼气向上推起到手臂接近伸直|缓慢下放回肩部高度，保持控制', '不要耸肩顶脖子|腰不要过度后仰|重量宁轻勿乱，先保证轨迹稳定', '/exercise-guides/shoulder-press.png', 'Everkinetic / Wikimedia Commons', 'https://commons.wikimedia.org/wiki/File:Dumbbell-shoulder-press-1.png');
+
+INSERT INTO fitnesscheckins (
+    username, checkin_date, duration_minutes, mood, note, created_at
+) VALUES
+('demo', CURRENT_DATE, 35, '状态不错', '完成了上肢训练，俯卧撑比上周稳定。', CURRENT_TIMESTAMP),
+('demo', CURRENT_DATE - INTERVAL '1 day', 25, '轻松', '做了核心训练和拉伸。', CURRENT_TIMESTAMP - INTERVAL '1 day'),
+('demo', CURRENT_DATE - INTERVAL '2 days', 40, '有挑战', '下肢训练比较累，休息时间需要拉长。', CURRENT_TIMESTAMP - INTERVAL '2 days');
+
+SELECT setval(pg_get_serial_sequence('notices', 'id'), COALESCE((SELECT MAX(id) FROM notices), 1), TRUE);
+SELECT setval(pg_get_serial_sequence('articles', 'id'), COALESCE((SELECT MAX(id) FROM articles), 1), TRUE);

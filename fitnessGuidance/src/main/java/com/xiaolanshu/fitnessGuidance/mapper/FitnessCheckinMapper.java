@@ -3,7 +3,9 @@ package com.xiaolanshu.fitnessGuidance.mapper;
 import com.xiaolanshu.fitnessGuidance.pojo.FitnessCheckin;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -12,16 +14,28 @@ import java.util.ArrayList;
 public interface FitnessCheckinMapper {
 
     @Select("SELECT * FROM fitnesscheckins WHERE username = #{username} AND checkin_date = #{checkinDate}")
-    FitnessCheckin findByDate(String username, LocalDate checkinDate);
+    FitnessCheckin findByDate(@Param("username") String username, @Param("checkinDate") LocalDate checkinDate);
 
-    @Insert("MERGE INTO fitnesscheckins " +
+    @Update("UPDATE fitnesscheckins SET duration_minutes = #{durationMinutes}, mood = #{mood}, " +
+            "note = #{note}, created_at = CURRENT_TIMESTAMP " +
+            "WHERE username = #{username} AND checkin_date = #{checkinDate}")
+    Integer updateToday(@Param("username") String username,
+                        @Param("checkinDate") LocalDate checkinDate,
+                        @Param("durationMinutes") Integer durationMinutes,
+                        @Param("mood") String mood,
+                        @Param("note") String note);
+
+    @Insert("INSERT INTO fitnesscheckins " +
             "(username, checkin_date, duration_minutes, mood, note, created_at) " +
-            "KEY(username, checkin_date) " +
-            "VALUES(#{username}, #{checkinDate}, #{durationMinutes}, #{mood}, #{note}, NOW())")
-    void saveToday(String username, LocalDate checkinDate, Integer durationMinutes, String mood, String note);
+            "VALUES(#{username}, #{checkinDate}, #{durationMinutes}, #{mood}, #{note}, CURRENT_TIMESTAMP)")
+    void insertToday(@Param("username") String username,
+                     @Param("checkinDate") LocalDate checkinDate,
+                     @Param("durationMinutes") Integer durationMinutes,
+                     @Param("mood") String mood,
+                     @Param("note") String note);
 
     @Select("SELECT * FROM fitnesscheckins WHERE username = #{username} ORDER BY checkin_date DESC LIMIT #{limit}")
-    ArrayList<FitnessCheckin> recent(String username, Integer limit);
+    ArrayList<FitnessCheckin> recent(@Param("username") String username, @Param("limit") Integer limit);
 
     @Select("SELECT COUNT(*) FROM fitnesscheckins WHERE username = #{username}")
     Integer countAll(String username);
@@ -30,9 +44,10 @@ public interface FitnessCheckinMapper {
     Integer sumMinutes(String username);
 
     @Select("SELECT COUNT(*) FROM fitnesscheckins " +
-            "WHERE username = #{username} AND YEAR(checkin_date) = YEAR(CURRENT_DATE) " +
-            "AND MONTH(checkin_date) = MONTH(CURRENT_DATE)")
-    Integer countThisMonth(String username);
+            "WHERE username = #{username} AND checkin_date >= #{monthStart} AND checkin_date < #{nextMonthStart}")
+    Integer countInDateRange(@Param("username") String username,
+                             @Param("monthStart") LocalDate monthStart,
+                             @Param("nextMonthStart") LocalDate nextMonthStart);
 
     @Select("SELECT checkin_date FROM fitnesscheckins WHERE username = #{username} ORDER BY checkin_date DESC")
     ArrayList<LocalDate> allDatesDesc(String username);

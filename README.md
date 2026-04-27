@@ -99,6 +99,88 @@ fitnessGuidance/src/main/resources/data.sql
 
 如果需要重置本地演示数据，可以先停止后端服务，再删除 `fitnessGuidance/data` 目录，然后重新启动后端。
 
+## 切换到 openGauss
+
+仓库内额外提供了一份 openGauss 初始化脚本：
+
+```text
+fitnessGuidance/database/opengauss-init.sql
+```
+
+这份脚本适合导入到新的 openGauss 数据库，里面会创建项目所需表结构并写入演示数据。注意：脚本开头会删除同名表，导入前请确认目标库可以重置。
+
+### 1. 创建数据库并导入脚本
+
+先在 openGauss 中创建一个数据库，例如：
+
+```sql
+CREATE DATABASE xiaolanshu;
+```
+
+然后导入初始化脚本。命令示例：
+
+```sh
+gsql -h 127.0.0.1 -p 5432 -U gaussdb -d xiaolanshu -f fitnessGuidance/database/opengauss-init.sql
+```
+
+如果对方使用的是远程 openGauss，把 `127.0.0.1`、`5432`、`gaussdb`、`xiaolanshu` 替换成实际连接信息即可。
+
+### 2. 修改 openGauss 连接配置
+
+openGauss 配置文件在：
+
+```text
+fitnessGuidance/src/main/resources/application-opengauss.properties
+```
+
+把里面的数据库地址、用户名、密码改成对方环境：
+
+```properties
+spring.datasource.url=jdbc:opengauss://127.0.0.1:5432/xiaolanshu
+spring.datasource.username=gaussdb
+spring.datasource.password=gaussdb
+spring.datasource.driver-class-name=org.opengauss.Driver
+spring.sql.init.mode=never
+```
+
+`spring.sql.init.mode=never` 表示后端启动时不再自动执行 H2 的 `schema.sql` / `data.sql`，openGauss 数据由上面的导入脚本负责。
+
+### 3. 使用 openGauss 配置启动后端
+
+进入后端目录：
+
+```sh
+cd fitnessGuidance
+```
+
+使用 openGauss profile 启动：
+
+```sh
+MAVEN_USER_HOME=.m2 ./mvnw spring-boot:run -Dspring-boot.run.profiles=opengauss
+```
+
+如果使用已经打好的 jar：
+
+```sh
+java -jar target/fitnessGuidance-0.0.1-SNAPSHOT.jar --spring.profiles.active=opengauss
+```
+
+前端启动方式不变，仍然进入 `vue-project` 执行：
+
+```sh
+npm install
+npm run dev
+```
+
+### 4. 切回默认 H2
+
+如果不指定 `opengauss` profile，项目会继续使用默认 H2 文件数据库：
+
+```sh
+cd fitnessGuidance
+MAVEN_USER_HOME=.m2 ./mvnw spring-boot:run
+```
+
 ## 本地动作图片
 
 动作指导页使用的图片已经放在项目本地：

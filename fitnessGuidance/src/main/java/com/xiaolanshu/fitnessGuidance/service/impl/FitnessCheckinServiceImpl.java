@@ -24,15 +24,21 @@ public class FitnessCheckinServiceImpl implements FitnessCheckinService {
     @Override
     public void saveToday(String username, Integer durationMinutes, String mood, String note) {
         Integer safeDuration = durationMinutes == null || durationMinutes < 0 ? 0 : durationMinutes;
-        fitnessCheckinMapper.saveToday(username, LocalDate.now(), safeDuration, mood, note);
+        LocalDate today = LocalDate.now();
+        Integer updatedRows = fitnessCheckinMapper.updateToday(username, today, safeDuration, mood, note);
+        if (updatedRows == null || updatedRows == 0) {
+            fitnessCheckinMapper.insertToday(username, today, safeDuration, mood, note);
+        }
     }
 
     @Override
     public CheckinStats getStats(String username) {
         CheckinStats stats = new CheckinStats();
+        LocalDate monthStart = LocalDate.now().withDayOfMonth(1);
+        LocalDate nextMonthStart = monthStart.plusMonths(1);
         stats.setTotalDays(fitnessCheckinMapper.countAll(username));
         stats.setTotalMinutes(fitnessCheckinMapper.sumMinutes(username));
-        stats.setMonthDays(fitnessCheckinMapper.countThisMonth(username));
+        stats.setMonthDays(fitnessCheckinMapper.countInDateRange(username, monthStart, nextMonthStart));
         stats.setRecentCheckins(fitnessCheckinMapper.recent(username, 8));
         stats.setCurrentStreak(calculateStreak(fitnessCheckinMapper.allDatesDesc(username)));
         return stats;
