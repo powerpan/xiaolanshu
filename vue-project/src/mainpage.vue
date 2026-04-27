@@ -192,6 +192,10 @@ const noticeParagraphs = computed(() => splitParagraphs(selectedNotice.value?.co
 const checkinPercent = computed(() => Math.min(100, Math.round(((checkinStats.value?.monthDays || 0) / 18) * 100)))
 const planPercent = computed(() => Math.min(100, Math.round((weeklyFrequency.value / 6) * 100)))
 const proteinPercent = computed(() => Math.min(100, Math.round(((nutrition.value?.proteinGrams || 0) / 140) * 100)))
+const heroBars = computed(() => {
+  const records = (checkinStats.value?.recentCheckins || []).slice(0, 5).reverse()
+  return records.map((item) => Math.min(100, Math.max(18, Math.round(((item.durationMinutes || 0) / 60) * 100))))
+})
 
 const ensureToken = () => {
   if (!getToken()) {
@@ -760,23 +764,43 @@ onMounted(bootstrap)
               <el-button :icon="Check" @click="openView('checkin')">完成打卡</el-button>
             </div>
           </div>
-          <div class="hero-visual" aria-hidden="true">
-            <div class="track-line">
-              <span></span>
-              <span></span>
-              <span></span>
-            </div>
-            <div class="pulse-panel">
-              <strong>{{ checkinPercent }}%</strong>
-              <small>本月习惯进度</small>
-            </div>
-            <div class="mini-bars">
-              <i style="height: 42%"></i>
-              <i style="height: 64%"></i>
-              <i style="height: 50%"></i>
-              <i style="height: 78%"></i>
-              <i style="height: 58%"></i>
-            </div>
+          <div class="hero-visual">
+            <section class="visual-ring-card">
+              <div class="progress-ring" :style="{ '--progress': `${checkinPercent}%` }">
+                <strong>{{ checkinPercent }}%</strong>
+              </div>
+              <div>
+                <span>本月习惯进度</span>
+                <small>{{ checkinStats?.monthDays || 0 }} 天已打卡 · 目标 18 天</small>
+              </div>
+            </section>
+            <section class="visual-data-grid">
+              <article>
+                <span>连续</span>
+                <strong>{{ checkinStats?.currentStreak || 0 }}</strong>
+                <small>天</small>
+              </article>
+              <article>
+                <span>累计</span>
+                <strong>{{ checkinStats?.totalMinutes || 0 }}</strong>
+                <small>分钟</small>
+              </article>
+              <article>
+                <span>计划</span>
+                <strong>{{ weeklyFrequency || 0 }}</strong>
+                <small>次/周</small>
+              </article>
+            </section>
+            <section class="visual-bars-card">
+              <div class="bar-head">
+                <span>最近训练节奏</span>
+                <small>按最近打卡时长</small>
+              </div>
+              <div v-if="heroBars.length" class="mini-bars">
+                <i v-for="(height, index) in heroBars" :key="index" :style="{ height: `${height}%` }"></i>
+              </div>
+              <p v-else class="visual-empty">暂无最近打卡数据</p>
+            </section>
           </div>
         </div>
 
@@ -1437,73 +1461,108 @@ onMounted(bootstrap)
 }
 
 .hero-visual {
-  position: relative;
   min-height: 300px;
+  display: grid;
+  align-content: center;
+  gap: 14px;
+  padding: 30px;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04)),
     repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.08) 0 1px, transparent 1px 48px);
 }
 
-.track-line {
-  position: absolute;
-  left: 40px;
-  right: 36px;
-  top: 52px;
-  height: 148px;
-  border: 2px solid rgba(255, 255, 255, 0.38);
-  border-left-color: transparent;
-  border-bottom-color: transparent;
+.visual-ring-card,
+.visual-data-grid,
+.visual-bars-card {
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(12px);
 }
 
-.track-line span {
-  position: absolute;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: #f2c35d;
+.visual-ring-card {
+  display: grid;
+  grid-template-columns: 132px minmax(0, 1fr);
+  gap: 18px;
+  align-items: center;
+  padding: 18px;
 }
 
-.track-line span:nth-child(1) { left: 32px; top: 52px; }
-.track-line span:nth-child(2) { left: 48%; top: 18px; background: #85d4ff; }
-.track-line span:nth-child(3) { right: 32px; bottom: -6px; background: #f28d63; }
-
-.pulse-panel {
-  position: absolute;
-  right: 42px;
-  top: 76px;
-  width: 148px;
-  height: 148px;
-  border: 14px solid rgba(255, 255, 255, 0.16);
-  border-top-color: #f2c35d;
-  border-right-color: #85d4ff;
+.progress-ring {
+  position: relative;
+  width: 132px;
+  aspect-ratio: 1;
   border-radius: 50%;
   display: grid;
   place-items: center;
-  text-align: center;
+  background: conic-gradient(#85d4ff var(--progress), rgba(255, 255, 255, 0.18) 0);
 }
 
-.pulse-panel strong,
-.pulse-panel small {
-  grid-column: 1;
-  grid-row: 1;
+.progress-ring::after {
+  content: "";
+  position: absolute;
+  inset: 14px;
+  border-radius: 50%;
+  background: #1c5b50;
 }
 
-.pulse-panel strong {
-  margin-top: -14px;
-  font-size: 34px;
+.progress-ring strong {
+  position: relative;
+  z-index: 1;
+  font-size: 32px;
 }
 
-.pulse-panel small {
-  margin-top: 42px;
-  color: rgba(255, 255, 255, 0.7);
+.visual-ring-card span,
+.bar-head span,
+.visual-data-grid span {
+  display: block;
+  color: rgba(255, 255, 255, 0.88);
+  font-weight: 900;
+}
+
+.visual-ring-card small,
+.bar-head small,
+.visual-data-grid small {
+  display: block;
+  margin-top: 4px;
+  color: rgba(255, 255, 255, 0.66);
+}
+
+.visual-data-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.visual-data-grid article {
+  padding: 14px 16px;
+  min-width: 0;
+}
+
+.visual-data-grid article + article {
+  border-left: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.visual-data-grid strong {
+  display: inline-block;
+  margin-top: 8px;
+  font-size: 26px;
+  line-height: 1;
+}
+
+.visual-bars-card {
+  padding: 16px;
+}
+
+.bar-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
 }
 
 .mini-bars {
-  position: absolute;
-  left: 44px;
-  right: 44px;
-  bottom: 42px;
-  height: 72px;
+  height: 84px;
   display: flex;
   align-items: end;
   gap: 12px;
@@ -1511,8 +1570,20 @@ onMounted(bootstrap)
 
 .mini-bars i {
   flex: 1;
+  min-width: 18px;
   border-radius: 8px 8px 0 0;
-  background: rgba(255, 255, 255, 0.82);
+  background: linear-gradient(180deg, #f2c35d, #85d4ff);
+}
+
+.visual-empty {
+  margin: 0;
+  min-height: 84px;
+  display: grid;
+  place-items: center;
+  border: 1px dashed rgba(255, 255, 255, 0.28);
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.68);
+  font-weight: 800;
 }
 
 .metric-grid {
@@ -2040,6 +2111,28 @@ onMounted(bootstrap)
 
   .hero-copy {
     padding: 28px;
+  }
+
+  .hero-visual {
+    padding: 18px;
+  }
+
+  .visual-ring-card {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+
+  .progress-ring {
+    margin: 0 auto;
+  }
+
+  .bar-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .mini-bars {
+    gap: 8px;
   }
 
   .hero-copy h2,
