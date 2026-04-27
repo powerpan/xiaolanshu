@@ -1,0 +1,37 @@
+package com.xiaolanshu.fitnessGuidance.mapper;
+
+import com.xiaolanshu.fitnessGuidance.pojo.Notice;
+import com.xiaolanshu.fitnessGuidance.pojo.Tempnotice;
+import org.apache.ibatis.annotations.*;
+
+import java.util.ArrayList;
+
+@Mapper
+public interface NoticeMapper {
+    @Select("SELECT * from notices")
+    ArrayList<Notice> getnotice();
+
+    @Insert("INSERT into notices(title,content,author,noticetime) "+
+            "values(#{title},#{content},#{author},now())")
+    void addnotice(String author,String title,String content);
+
+    @Delete("DELETE from notices where title =#{title} AND content =#{content}")
+    void deletenotice(String title,String content);
+
+
+    @Update("UPDATE notices " +
+            "SET title = #{title}, " +
+            "content = #{content} " +
+            "WHERE title = #{lasttitle} AND content =#{lastcontent} ")
+    void editnotice(String lasttitle,String lastcontent, String title, String content);
+
+    @Insert("INSERT into tempnotices(title,content,author,tempnoticetime) "+
+            "values(#{title},#{content},#{authorname},now())")
+    void savetempnotice(String title, String content, String authorname);
+
+    @Select("SELECT * from tempnotices WHERE author = #{authorname}")
+    ArrayList<Tempnotice> gettempnotice(String authorname);
+
+    @Delete("DELETE from tempnotices WHERE author = #{authorname}")
+    void deletetempnotice(String authorname);
+}

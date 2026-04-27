@@ -1,0 +1,43 @@
+# macOS
+.DS_Store
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Environment and local overrides
+.env
+.env.*
+*.local
+
+# Frontend dependencies and builds
+**/node_modules/
+**/.npm-cache/
+**/dist/
+**/dist-ssr/
+**/coverage/
+**/*.tsbuildinfo
+
+# Backend builds and local dependency cache
+**/target/
+**/.m2/
+
+# Local embedded database files
+**/data/
+*.mv.db
+*.trace.db
+
+# IDE files
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+
+# Temporary files
+*.tmp
+*.swp
+*.swo
