@@ -8,8 +8,11 @@ import java.util.ArrayList;
 
 @Mapper
 public interface NoticeMapper {
-    @Select("SELECT * from notices")
+    @Select("SELECT * from notices ORDER BY noticetime DESC")
     ArrayList<Notice> getnotice();
+
+    @Select("SELECT * FROM notices WHERE id = #{id}")
+    Notice getNoticeDetail(Integer id);
 
     @Insert("INSERT into notices(title,content,author,noticetime) "+
             "values(#{title},#{content},#{author},now())")

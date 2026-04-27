@@ -20,6 +20,11 @@ public class ArticleServiceImpl implements ArticleService {
     }
 
     @Override
+    public Article getArticleDetail(Integer id) {
+        return articleMapper.getArticleDetail(id);
+    }
+
+    @Override
     public ArrayList<Article> getarticlewithouttopic(String title) {
         return articleMapper.getarticlewithouttopic(title);
     }
@@ -40,6 +45,11 @@ public class ArticleServiceImpl implements ArticleService {
     }
 
     @Override
+    public void deleteArticleById(Integer id) {
+        articleMapper.deleteArticleById(id);
+    }
+
+    @Override
     public void deleteallarticle(String username) {
         articleMapper.deleteallarticle(username);
     }
@@ -47,6 +57,11 @@ public class ArticleServiceImpl implements ArticleService {
     @Override
     public void editarticle(String username, String lasttitle, String lastcontent, String title, String content) {
         articleMapper.editarticle(username,lasttitle,lastcontent,title,content);
+    }
+
+    @Override
+    public void editArticleById(Integer id, String title, String content, String topic) {
+        articleMapper.editArticleById(id,title,content,topic);
     }
 
 }

@@ -14,6 +14,9 @@ public interface ArticleMapper {
             "ORDER BY articletime DESC")
     ArrayList<Article> getarticle(String title, String topic);
 
+    @Select("SELECT * FROM articles WHERE id = #{id}")
+    Article getArticleDetail(Integer id);
+
     @Select("SELECT * from articles " +
             "WHERE (#{title} IS NULL OR #{title} = '' OR title LIKE CONCAT('%', #{title}, '%')) " +
             "ORDER BY articletime DESC")
@@ -29,6 +32,9 @@ public interface ArticleMapper {
     @Delete("DELETE from articles WHERE author = #{username} AND title =#{title} AND content =#{content}")
     void deletearticle(String username, String title, String content);
 
+    @Delete("DELETE from articles WHERE id = #{id}")
+    void deleteArticleById(Integer id);
+
     @Delete("DELETE from articles WHERE author = #{username}")
     void deleteallarticle(String username);
 
@@ -37,4 +43,9 @@ public interface ArticleMapper {
             "content = #{content} " +
             "WHERE title = #{lasttitle} AND content =#{lastcontent} AND author =#{username} ")
     void editarticle(String username, String lasttitle, String lastcontent, String title, String content);
+
+    @Update("UPDATE articles " +
+            "SET title = #{title}, content = #{content}, topic = #{topic} " +
+            "WHERE id = #{id}")
+    void editArticleById(Integer id, String title, String content, String topic);
 }

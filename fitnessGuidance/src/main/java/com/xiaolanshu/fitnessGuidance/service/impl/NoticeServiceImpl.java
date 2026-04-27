@@ -21,6 +21,12 @@ public class NoticeServiceImpl implements NoticeService {
     }
 
     @Override
+    public Notice getNoticeDetail(Integer id)
+    {
+        return noticemapper.getNoticeDetail(id);
+    }
+
+    @Override
     public void addnotice(String author,String title,String content)
     {
         noticemapper.addnotice(author,title,content);

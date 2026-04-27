@@ -91,12 +91,18 @@ public class UserController {
             ,String specialty,Double height,Double weight)
     {
         //令牌验证
+        Map<String, Object> claims;
         try {
-            Map<String, Object> claims = Jwtutil.parseToken(jwttoken);
+            claims = Jwtutil.parseToken(jwttoken);
         } catch (Exception e) {
             return Result.error("未登录");
         }
-        userService.editallmessage(username,nickname,password,userpic,identity,specialty,height,weight);
+        String tokenUsername = String.valueOf(claims.get("username"));
+        User current = userService.findUsername(tokenUsername);
+        if (current == null) {
+            return Result.error("用户不存在");
+        }
+        userService.editallmessage(tokenUsername,nickname,password,userpic,current.getIdentity(),specialty,height,weight);
         return Result.success();
     }
 
@@ -149,6 +155,10 @@ public class UserController {
         Map<String , Object> map =Jwtutil.parseToken(jwttoken);
         String myusername = String.valueOf(map.get("username"));
         User preu = userService.findUsername(myusername);
+        if(!Objects.equals(preu.getIdentity(), "ADMIN"))
+        {
+            return Result.error("无相关权限");
+        }
         ArrayList<User> alluser = userService.getallmessage();
         return Result.success(alluser);
     }

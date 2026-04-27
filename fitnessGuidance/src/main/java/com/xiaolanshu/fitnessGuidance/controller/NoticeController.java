@@ -23,17 +23,34 @@ public class NoticeController {
     private UserService userService;
 
     @GetMapping("/getnotice")
-    public Result<ArrayList<Notice>> getnotice(@RequestHeader(name = "Authorization") String jwttoken)
+    public Result<ArrayList<Notice>> getnotice(@RequestHeader(name = "Authorization", required = false) String authorization,
+                                               String jwttoken)
     {
         //令牌验证
         try {
-            Map<String, Object> claims = Jwtutil.parseToken(jwttoken);
+            Map<String, Object> claims = Jwtutil.parseToken(resolveToken(authorization, jwttoken));
         } catch (Exception e) {
             // http 响应状态码为401
             return Result.error("未登录");
         }
         ArrayList<Notice> notices = noticeService.getnotice();
         return Result.success(notices);
+    }
+
+    @GetMapping("/getnoticedetail")
+    public Result<Notice> getnoticedetail(@RequestHeader(name = "Authorization", required = false) String authorization,
+                                          String jwttoken, Integer id)
+    {
+        try {
+            Map<String, Object> claims = Jwtutil.parseToken(resolveToken(authorization, jwttoken));
+        } catch (Exception e) {
+            return Result.error("未登录");
+        }
+        Notice notice = noticeService.getNoticeDetail(id);
+        if (notice == null) {
+            return Result.error("公告不存在");
+        }
+        return Result.success(notice);
     }
 
     //管理员的特殊权限
@@ -158,5 +175,12 @@ public class NoticeController {
         }
         noticeService.deletetempnotice(authorname);
         return Result.success();
+    }
+
+    private String resolveToken(String authorization, String jwttoken) {
+        if (authorization != null && !authorization.isBlank()) {
+            return authorization;
+        }
+        return jwttoken;
     }
 }

@@ -8,6 +8,8 @@ import java.util.ArrayList;
 public interface NoticeService {
     ArrayList<Notice> getnotice();
 
+    Notice getNoticeDetail(Integer id);
+
     void addnotice(String author,String title,String content);
 
     void deletenotice(String title,String content);
