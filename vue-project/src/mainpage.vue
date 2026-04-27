@@ -227,6 +227,11 @@ const splitParagraphs = (value) => {
     .filter(Boolean)
 }
 
+const splitGuideText = (value) => String(value || '')
+  .split('|')
+  .map((item) => item.trim())
+  .filter(Boolean)
+
 const readingMinutes = (value) => Math.max(1, Math.ceil(String(value || '').length / 360))
 
 const topicTone = (topic = '') => {
@@ -944,11 +949,38 @@ onMounted(bootstrap)
           </div>
           <div class="task-grid">
             <article v-for="task in actionTasks" :key="`${task.actionPattern}-${task.description}`" class="task-card">
-              <span>{{ task.actionPattern }}</span>
-              <h3>{{ task.minSets }}-{{ task.maxSets }} 组 · {{ task.minReps }}-{{ task.maxReps }} 次</h3>
-              <p>{{ task.description }}</p>
-              <small>休息 {{ task.minRestSeconds }}-{{ task.maxRestSeconds }} 秒</small>
+              <div class="task-figure">
+                <img v-if="task.imageurl" :src="task.imageurl" :alt="`${task.actionName || task.actionPattern}动作图`" />
+                <div v-else class="task-placeholder">
+                  <el-icon><Guide /></el-icon>
+                </div>
+              </div>
+              <div class="task-body">
+                <span>{{ task.actionPattern }}</span>
+                <h3>{{ task.actionName || task.actionPattern }}</h3>
+                <div class="task-dose">
+                  <strong>{{ task.minSets }}-{{ task.maxSets }} 组</strong>
+                  <strong>{{ task.minReps }}-{{ task.maxReps }} 次</strong>
+                  <strong>休息 {{ task.minRestSeconds }}-{{ task.maxRestSeconds }} 秒</strong>
+                </div>
+                <p>{{ task.guideDescription || task.description }}</p>
+                <div class="guide-columns">
+                  <div>
+                    <h4>执行步骤</h4>
+                    <ol>
+                      <li v-for="step in splitGuideText(task.steps)" :key="step">{{ step }}</li>
+                    </ol>
+                  </div>
+                  <div>
+                    <h4>训练要点</h4>
+                    <ul>
+                      <li v-for="tip in splitGuideText(task.tips)" :key="tip">{{ tip }}</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
             </article>
+            <el-empty v-if="!actionTasks.length" description="暂无训练动作，请先完善健身需求" />
           </div>
         </div>
       </section>
@@ -966,9 +998,23 @@ onMounted(bootstrap)
           <label><span>器材</span><el-select v-model="guideForm.equipment"><el-option v-for="item in equipments" :key="item" :label="item" :value="item" /></el-select></label>
         </div>
         <div v-if="guideResult" class="result-block">
-          <h3>{{ guideResult.actionPattern }} · {{ guideResult.equipment }}</h3>
+          <img v-if="guideResult.imageurl" :src="guideResult.imageurl" :alt="`${guideResult.actionName || guideResult.actionPattern}动作图`" />
+          <h3>{{ guideResult.actionName || guideResult.actionPattern }} · {{ guideResult.equipment }}</h3>
           <p>{{ guideResult.description || '暂无说明' }}</p>
-          <img v-if="guideResult.imageurl" :src="guideResult.imageurl" alt="动作图示" />
+          <div class="guide-columns">
+            <div>
+              <h4>执行步骤</h4>
+              <ol>
+                <li v-for="step in splitGuideText(guideResult.steps)" :key="step">{{ step }}</li>
+              </ol>
+            </div>
+            <div>
+              <h4>训练要点</h4>
+              <ul>
+                <li v-for="tip in splitGuideText(guideResult.tips)" :key="tip">{{ tip }}</li>
+              </ul>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -1826,6 +1872,10 @@ onMounted(bootstrap)
   gap: 14px;
 }
 
+.task-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .notice-card,
 .article-card,
 .task-card {
@@ -1860,21 +1910,89 @@ onMounted(bootstrap)
   border: 1px solid #dfe4da;
   border-radius: 8px;
   background: #fff;
+  padding: 0;
+  overflow: hidden;
+  cursor: default;
 }
 
-.task-card span {
+.task-figure {
+  min-height: 190px;
+  background: #eef5ef;
+}
+
+.task-figure img {
+  width: 100%;
+  height: 100%;
+  min-height: 190px;
+  display: block;
+  object-fit: contain;
+}
+
+.task-placeholder {
+  min-height: 190px;
+  display: grid;
+  place-items: center;
+  color: #8aa097;
+  font-size: 42px;
+}
+
+.task-body {
+  padding: 18px;
+  display: grid;
+  gap: 12px;
+}
+
+.task-body span {
   color: #c65f3d;
   font-weight: 900;
 }
 
-.task-card h3,
-.task-card p {
+.task-body h3,
+.task-body p,
+.guide-columns h4 {
   margin: 0;
 }
 
-.task-card p {
+.task-body h3 {
+  font-size: 24px;
+}
+
+.task-dose {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.task-dose strong {
+  border: 1px solid #dce2d8;
+  border-radius: 8px;
+  padding: 7px 10px;
+  background: #f8faf5;
+  color: #33433c;
+  font-size: 13px;
+}
+
+.task-body p {
   color: #5b6c64;
   line-height: 1.7;
+}
+
+.guide-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.guide-columns h4 {
+  color: #173f37;
+}
+
+.guide-columns ol,
+.guide-columns ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  color: #566860;
+  line-height: 1.75;
 }
 
 .reader-page {
@@ -1989,11 +2107,12 @@ onMounted(bootstrap)
 }
 
 .result-block img {
-  margin-top: 16px;
-  max-width: 100%;
+  width: 100%;
   max-height: 360px;
   object-fit: contain;
   border-radius: 8px;
+  margin-bottom: 16px;
+  background: #eef5ef;
 }
 
 .clean-list {
@@ -2055,7 +2174,8 @@ onMounted(bootstrap)
   .home-content-grid,
   .two-column,
   .admin-grid,
-  .reader-page {
+  .reader-page,
+  .guide-columns {
     grid-template-columns: 1fr;
   }
 

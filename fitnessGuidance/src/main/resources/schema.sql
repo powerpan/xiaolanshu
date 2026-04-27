@@ -90,10 +90,17 @@ CREATE UNIQUE INDEX IF NOT EXISTS uk_actiondetails_pattern_equipment
 CREATE TABLE IF NOT EXISTS exerciseguides (
     id INT AUTO_INCREMENT PRIMARY KEY,
     actionpattern VARCHAR(100) NOT NULL,
+    actionname VARCHAR(100),
     equipment VARCHAR(50) NOT NULL,
     description TEXT,
+    steps TEXT,
+    tips TEXT,
     imageurl VARCHAR(1000)
 );
+
+ALTER TABLE exerciseguides ADD COLUMN IF NOT EXISTS actionname VARCHAR(100);
+ALTER TABLE exerciseguides ADD COLUMN IF NOT EXISTS steps TEXT;
+ALTER TABLE exerciseguides ADD COLUMN IF NOT EXISTS tips TEXT;
 
 CREATE UNIQUE INDEX IF NOT EXISTS uk_exerciseguides_pattern_equipment
     ON exerciseguides(actionpattern, equipment);

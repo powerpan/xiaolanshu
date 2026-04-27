@@ -7,7 +7,12 @@ import org.apache.ibatis.annotations.Select;
 @Mapper
 public interface ExerciseGuideMapper {
 
-    @Select("SELECT * FROM exerciseguides WHERE actionPattern = #{actionPattern} AND equipment = #{equipment}")
+    @Select("SELECT id, actionpattern AS \"actionPattern\", actionname AS \"actionName\", " +
+            "equipment, description, steps, tips, imageurl FROM exerciseguides " +
+            "WHERE actionpattern = #{actionPattern} " +
+            "AND (equipment = #{equipment} OR equipment = '徒手') " +
+            "ORDER BY CASE WHEN equipment = #{equipment} THEN 0 ELSE 1 END " +
+            "LIMIT 1")
     ExerciseGuide getexerciseguide(String actionPattern, String equipment);
 
 }

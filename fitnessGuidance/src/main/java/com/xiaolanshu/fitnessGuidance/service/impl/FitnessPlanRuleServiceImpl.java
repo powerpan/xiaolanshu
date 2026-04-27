@@ -14,7 +14,15 @@ public class FitnessPlanRuleServiceImpl implements FitnessPlanRuleService {
 
     @Override
     public FitnessPlanRule getfitnessplanrule(String fitnessGoal, Integer weeklyFrequency){
-        return fitnessPlanRuleMapper.getfitnessplanrule(fitnessGoal,weeklyFrequency);
+        FitnessPlanRule rule = fitnessPlanRuleMapper.getfitnessplanrule(fitnessGoal,weeklyFrequency);
+        if (rule != null) {
+            return rule;
+        }
+        rule = fitnessPlanRuleMapper.getfitnessplanrule("保持健康",weeklyFrequency);
+        if (rule != null) {
+            return rule;
+        }
+        return fitnessPlanRuleMapper.getfitnessplanrule("保持健康",3);
     };
 
 }

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" role="img" aria-labelledby="title desc">
+  <title id="title">徒手深蹲动作图</title>
+  <desc id="desc">髋部向后向下，膝盖跟随脚尖方向。</desc>
+  <rect width="640" height="360" rx="28" fill="#fff7df"/>
+  <path d="M132 300h376" stroke="#e7c46c" stroke-width="12" stroke-linecap="round"/>
+  <circle cx="300" cy="98" r="28" fill="#173f37"/>
+  <path d="M300 128 270 208 358 230" fill="none" stroke="#173f37" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M270 208 212 276M358 230 420 282" stroke="#2c8f72" stroke-width="22" stroke-linecap="round"/>
+  <path d="M212 276h-58M420 282h64" stroke="#173f37" stroke-width="18" stroke-linecap="round"/>
+  <path d="M285 150 230 178M315 150 384 170" stroke="#173f37" stroke-width="18" stroke-linecap="round"/>
+  <text x="64" y="66" font-size="30" font-family="Arial, sans-serif" fill="#173f37" font-weight="700">徒手深蹲</text>
+  <text x="64" y="105" font-size="20" font-family="Arial, sans-serif" fill="#715c22">脚跟踩稳，膝盖不要内扣</text>
+</svg>
