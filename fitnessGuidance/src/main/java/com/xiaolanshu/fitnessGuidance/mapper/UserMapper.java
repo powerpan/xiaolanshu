@@ -38,7 +38,7 @@ public interface UserMapper {
             "specialty = #{specialty}, "+
             "userpic = #{userpic}, " +
             "height = #{height},"+
-            "weight = #{weight}"+
+            "weight = #{weight} "+
             "WHERE username = #{username}")
     void updateall(String username, String nickname, String password, String userpic,
                    String identity, String specialty, Double height, Double weight);

@@ -3,6 +3,7 @@ package com.xiaolanshu.fitnessGuidance.service.impl;
 import com.xiaolanshu.fitnessGuidance.mapper.UserMapper;
 import com.xiaolanshu.fitnessGuidance.pojo.User;
 import com.xiaolanshu.fitnessGuidance.service.UserService;
+import com.xiaolanshu.fitnessGuidance.utils.PasswordUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -22,13 +23,13 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public void register(String username, String password,String identity) {
-        usermapper.insert(username,password,identity);
+        usermapper.insert(username, PasswordUtil.hash(password),identity);
     }
 
     @Override
     public void adduser(String username,String password,String identity)
     {
-        usermapper.adduser(username,password,identity);
+        usermapper.adduser(username, PasswordUtil.hash(password),identity);
     }
 
     @Override
@@ -52,6 +53,11 @@ public class UserServiceImpl implements UserService {
     @Override
     public void editallmessage(String username,String nickname,String password,String userpic,
                                String identity,String specialty,Double height,Double weight){
-        usermapper.updateall(username,nickname,password,userpic,identity,specialty,height,weight);
+        User existing = usermapper.findUsername(username);
+        String nextPassword = existing != null ? existing.getPassword() : null;
+        if (password != null && !password.isBlank()) {
+            nextPassword = PasswordUtil.hash(password);
+        }
+        usermapper.updateall(username,nickname,nextPassword,userpic,identity,specialty,height,weight);
     }
 }

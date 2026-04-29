@@ -7,13 +7,12 @@ import {
   Calendar,
   Check,
   DataAnalysis,
-  Food,
   Guide,
   Lock,
   TrendCharts,
   User,
 } from '@element-plus/icons-vue'
-import api from './services/api'
+import api, { formBody } from './services/api'
 
 const router = useRouter()
 const mode = ref('login')
@@ -61,12 +60,13 @@ const submit = async () => {
 
   loading.value = true
   try {
-    const params = new URLSearchParams()
-    params.append('username', username.value.trim())
-    params.append('password', password.value)
+    const params = {
+      username: username.value.trim(),
+      password: password.value,
+    }
 
     if (isLogin()) {
-      const response = await api.post(`/user/login?${params.toString()}`)
+      const response = await api.post('/user/login', formBody(params))
       if (response.data.status !== 1) {
         throw new Error(response.data.message)
       }
@@ -74,8 +74,7 @@ const submit = async () => {
       ElMessage.success('登录成功')
       router.push('/mainpage')
     } else {
-      params.append('identity', 'user')
-      const response = await api.post(`/user/register?${params.toString()}`)
+      const response = await api.post('/user/register', formBody(params))
       if (response.data.status !== 1) {
         throw new Error(response.data.message)
       }
@@ -95,12 +94,6 @@ const switchMode = () => {
   resetForm()
 }
 
-const loginDemo = async () => {
-  mode.value = 'login'
-  username.value = 'demo'
-  password.value = 'demo123'
-  await submit()
-}
 </script>
 
 <template>
@@ -117,7 +110,7 @@ const loginDemo = async () => {
       <div class="hero-copy">
         <p>Personal training workspace</p>
         <h1>把训练计划、动作学习和复盘数据放到同一个产品里</h1>
-        <span>适合课程设计、毕业答辩和真实演示：普通用户看内容和训练，管理员维护公告、文章和账号。</span>
+        <span>围绕个人目标生成训练安排，结合动作指导、饮食建议和打卡记录，让每天的训练都有明确下一步。</span>
       </div>
 
       <div class="feature-grid">
@@ -185,31 +178,23 @@ const loginDemo = async () => {
           {{ isLogin() ? '登录' : '注册' }}
         </el-button>
 
-        <el-button v-if="isLogin()" class="demo-action" size="large" :icon="Food" :disabled="loading" @click="loginDemo">
-          使用演示账号进入
-        </el-button>
       </div>
 
       <button class="text-action" @click="switchMode">
         {{ isLogin() ? '没有账号？创建一个' : '已有账号？返回登录' }}
       </button>
-
-      <div class="demo-note">
-        <span>演示账号</span>
-        <strong>demo / demo123</strong>
-      </div>
     </section>
   </main>
 </template>
 
 <style scoped>
 .auth-page {
-  min-height: 100vh;
+  min-height: 100svh;
   display: grid;
-  grid-template-columns: minmax(0, 1.08fr) minmax(390px, 0.92fr);
-  gap: clamp(24px, 5vw, 72px);
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 440px);
+  gap: clamp(16px, 4vw, 52px);
   align-items: center;
-  padding: clamp(18px, 3vw, 38px);
+  padding: clamp(12px, 2vw, 28px);
   background:
     linear-gradient(110deg, rgba(36, 59, 56, 0.96) 0 48%, transparent 48%),
     linear-gradient(135deg, #f6f8f1 0%, #eef5ef 52%, #f9efd9 100%);
@@ -217,12 +202,12 @@ const loginDemo = async () => {
 }
 
 .auth-hero {
-  min-height: calc(100vh - clamp(36px, 6vw, 76px));
+  min-height: 0;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 34px;
-  padding: clamp(26px, 5vw, 72px);
+  gap: 22px;
+  padding: clamp(18px, 4vw, 50px);
   color: #fff;
 }
 
@@ -234,8 +219,8 @@ const loginDemo = async () => {
 
 .brand-mark,
 .brand-line .brand-mark {
-  width: 56px;
-  height: 56px;
+  width: 50px;
+  height: 50px;
   border-radius: 8px;
   display: grid;
   place-items: center;
@@ -274,8 +259,8 @@ const loginDemo = async () => {
 .hero-copy h1 {
   max-width: 820px;
   margin: 0;
-  font-size: clamp(42px, 6vw, 78px);
-  line-height: 1.03;
+  font-size: clamp(34px, 5vw, 60px);
+  line-height: 1.06;
   letter-spacing: 0;
   overflow-wrap: anywhere;
 }
@@ -283,9 +268,9 @@ const loginDemo = async () => {
 .hero-copy span {
   display: block;
   max-width: 640px;
-  margin-top: 22px;
-  font-size: 18px;
-  line-height: 1.8;
+  margin-top: 16px;
+  font-size: 16px;
+  line-height: 1.68;
 }
 
 .feature-grid {
@@ -296,19 +281,20 @@ const loginDemo = async () => {
 }
 
 .feature-grid article {
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 8px;
-  padding: 18px;
-  background: rgba(255, 255, 255, 0.08);
+  padding: 14px;
+  background: rgba(20, 50, 45, 0.76);
   backdrop-filter: blur(12px);
   display: grid;
   gap: 10px;
+  box-shadow: 0 14px 34px rgba(12, 32, 28, 0.18);
   transition: transform 220ms ease, background 220ms ease;
 }
 
 .feature-grid article:hover {
   transform: translateY(-4px);
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(23, 79, 66, 0.82);
 }
 
 .feature-grid .el-icon {
@@ -334,9 +320,9 @@ const loginDemo = async () => {
 
 .auth-card {
   width: 100%;
-  max-width: 500px;
+  max-width: 460px;
   justify-self: center;
-  padding: clamp(24px, 4vw, 38px);
+  padding: clamp(20px, 3vw, 30px);
   border: 1px solid #d9ded6;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.94);
@@ -345,16 +331,16 @@ const loginDemo = async () => {
 }
 
 .product-preview {
-  margin-bottom: 28px;
+  margin-bottom: 20px;
   border: 1px solid #dfe5d9;
   border-radius: 8px;
-  padding: 18px;
+  padding: 14px;
   background:
     linear-gradient(135deg, #173f37, #2c8f72),
     repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.08) 0 1px, transparent 1px 42px);
   color: #fff;
   display: grid;
-  gap: 16px;
+  gap: 12px;
   overflow: hidden;
   position: relative;
 }
@@ -392,13 +378,13 @@ const loginDemo = async () => {
 }
 
 .preview-head strong {
-  font-size: 22px;
+  font-size: 19px;
 }
 
 .preview-ring {
-  width: 118px;
+  width: 94px;
   aspect-ratio: 1;
-  margin: 4px auto;
+  margin: 0 auto;
   border-radius: 50%;
   display: grid;
   place-items: center;
@@ -409,7 +395,7 @@ const loginDemo = async () => {
 }
 
 .preview-ring strong {
-  font-size: 34px;
+  font-size: 27px;
   line-height: 1;
 }
 
@@ -428,7 +414,7 @@ const loginDemo = async () => {
 .workflow-line span {
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 8px;
-  padding: 10px;
+  padding: 8px;
   background: rgba(255, 255, 255, 0.1);
 }
 
@@ -457,20 +443,20 @@ const loginDemo = async () => {
 
 .auth-heading h2 {
   margin: 0;
-  font-size: 32px;
+  font-size: 30px;
   letter-spacing: 0;
 }
 
 .auth-heading span {
   display: block;
-  margin: 10px 0 28px;
+  margin: 8px 0 22px;
   color: #607169;
   line-height: 1.7;
 }
 
 .auth-form {
   display: grid;
-  gap: 18px;
+  gap: 14px;
 }
 
 .auth-form label {
@@ -485,72 +471,55 @@ const loginDemo = async () => {
   margin-top: 8px;
 }
 
-.demo-action {
-  width: 100%;
-  margin-left: 0;
-}
-
 .text-action {
   width: 100%;
   border: 0;
   background: transparent;
   color: #174f42;
   font-weight: 800;
-  margin-top: 18px;
+  margin-top: 14px;
   cursor: pointer;
-}
-
-.demo-note {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: 28px;
-  padding-top: 18px;
-  border-top: 1px solid #e5e8e0;
-  color: #6a756f;
-}
-
-.demo-note strong {
-  color: #17211c;
 }
 
 @media (max-width: 960px) {
   .auth-page {
     grid-template-columns: 1fr;
+    align-content: start;
+    gap: 14px;
     background:
-      linear-gradient(180deg, rgba(36, 59, 56, 0.98) 0 52%, #f6f8f1 52%),
+      linear-gradient(180deg, rgba(36, 59, 56, 0.98) 0 38%, #f6f8f1 38%),
       linear-gradient(135deg, #f6f8f1 0%, #eef5ef 52%, #f9efd9 100%);
   }
 
   .auth-hero {
     min-height: auto;
-    padding: 34px 18px 0;
+    gap: 12px;
+    padding: 12px 4px 0;
+  }
+
+  .brand-mark,
+  .brand-line .brand-mark {
+    width: 42px;
+    height: 42px;
+  }
+
+  .brand-line strong {
+    font-size: 18px;
+  }
+
+  .hero-copy p {
+    margin-bottom: 6px;
   }
 
   .hero-copy h1 {
-    font-size: 42px;
-  }
-
-  .feature-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .auth-card {
-    max-width: none;
-  }
-}
-
-@media (max-width: 520px) {
-  .auth-page {
-    padding: 12px;
-  }
-
-  .hero-copy h1 {
-    font-size: 34px;
+    font-size: clamp(28px, 7vw, 36px);
+    line-height: 1.08;
   }
 
   .hero-copy span {
-    font-size: 16px;
+    margin-top: 10px;
+    font-size: 14px;
+    line-height: 1.55;
   }
 
   .feature-grid {
@@ -558,16 +527,106 @@ const loginDemo = async () => {
   }
 
   .auth-card {
-    padding: 20px;
+    max-width: none;
+    padding: 18px;
   }
 
-  .preview-stats,
-  .workflow-line {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .product-preview {
+    display: none;
   }
 
-  .demo-note {
-    flex-direction: column;
+  .auth-heading h2 {
+    font-size: 26px;
+  }
+
+  .auth-heading span {
+    margin-bottom: 18px;
+  }
+}
+
+@media (max-width: 520px) {
+  .auth-page {
+    gap: 10px;
+    padding: 10px;
+  }
+
+  .auth-hero {
+    gap: 8px;
+    padding-top: 6px;
+  }
+
+  .brand-line {
+    gap: 10px;
+  }
+
+  .brand-mark,
+  .brand-line .brand-mark {
+    width: 36px;
+    height: 36px;
+  }
+
+  .brand-line small {
+    display: none;
+  }
+
+  .hero-copy h1 {
+    font-size: 28px;
+    line-height: 1.06;
+  }
+
+  .hero-copy span {
+    display: none;
+  }
+
+  .feature-grid {
+    display: none;
+  }
+
+  .auth-card {
+    padding: 16px;
+  }
+
+  .auth-heading h2 {
+    font-size: 24px;
+  }
+
+  .auth-heading span {
+    margin-bottom: 14px;
+    line-height: 1.5;
+  }
+
+  .auth-form {
+    gap: 12px;
+  }
+
+}
+
+@media (max-height: 760px) and (min-width: 961px) {
+  .auth-page {
+    gap: 24px;
+    padding: 14px 22px;
+  }
+
+  .auth-hero {
+    gap: 16px;
+    padding: 24px;
+  }
+
+  .hero-copy h1 {
+    font-size: clamp(32px, 4.2vw, 48px);
+  }
+
+  .hero-copy span {
+    margin-top: 12px;
+    line-height: 1.55;
+  }
+
+  .feature-grid {
+    display: none;
+  }
+
+  .product-preview {
+    display: none;
   }
 }
 </style>

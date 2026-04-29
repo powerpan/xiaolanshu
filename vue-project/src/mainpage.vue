@@ -29,7 +29,7 @@ import {
   User,
   View,
 } from '@element-plus/icons-vue'
-import api, { getToken, unwrap, withToken } from './services/api'
+import api, { formBody, getToken, unwrap, withToken } from './services/api'
 
 const router = useRouter()
 const route = useRoute()
@@ -140,9 +140,9 @@ const checkinForm = reactive({
 })
 
 const fitnessGoals = ['保持健康', '增肌', '减脂', '塑形', '提升力量']
-const equipments = ['徒手', '哑铃', '弹力带', '杠铃', '固定器械', '瑜伽垫']
+const equipments = ['徒手', '哑铃', '弹力带', '杠铃', '单杠', '综合器械']
 const levels = ['新手', '进阶', '熟练', '资深']
-const actionPatterns = ['水平推', '垂直拉', '下肢蹲', '核心', '下肢硬拉', '垂直推', '弯举', '臂屈伸', '水平拉']
+const actionPatterns = ['水平推', '垂直推', '水平拉', '垂直拉', '下肢蹲', '髋铰链', '单腿训练', '核心稳定', '手臂弯举', '手臂伸展', '灵活恢复']
 const moods = ['状态不错', '轻松', '有挑战', '需要恢复']
 
 const navGroups = computed(() => [
@@ -194,8 +194,8 @@ const overviewCards = computed(() => [
   { label: '计划频率', value: weeklyFrequency.value, unit: '次/周', tone: 'ink' },
 ])
 
-const featuredArticles = computed(() => articles.value.slice(0, 3))
-const featuredNotices = computed(() => notices.value.slice(0, 3))
+const featuredArticles = computed(() => articles.value.slice(0, 2))
+const featuredNotices = computed(() => notices.value.slice(0, 2))
 const articleParagraphs = computed(() => splitParagraphs(selectedArticle.value?.content))
 const noticeParagraphs = computed(() => splitParagraphs(selectedNotice.value?.content))
 const checkinPercent = computed(() => Math.min(100, Math.round(((checkinStats.value?.monthDays || 0) / 18) * 100)))
@@ -666,8 +666,7 @@ const openView = async (key) => {
 
 const saveProfile = async () => {
   try {
-    await unwrap(api.put('/user/editmessage', null, {
-      params: withToken({
+    await unwrap(api.put('/user/editmessage', formBody({
         username: profileForm.username,
         nickname: profileForm.nickname,
         password: profileForm.password,
@@ -676,8 +675,7 @@ const saveProfile = async () => {
         specialty: profileForm.specialty,
         height: profileForm.height,
         weight: profileForm.weight,
-      }),
-    }))
+      })))
     ElMessage.success('个人资料已更新')
     await loadUser()
     await loadNutrition()
@@ -707,9 +705,7 @@ const saveFitnessProfile = async () => {
 
 const addAdminUser = async () => {
   try {
-    await unwrap(api.post('/user/adduser', null, {
-      params: withToken(adminAddForm),
-    }))
+    await unwrap(api.post('/user/adduser', formBody(adminAddForm)))
     ElMessage.success('用户已添加')
     Object.assign(adminAddForm, { username: '', password: '', identity: 'user' })
     await loadUsers()
@@ -734,9 +730,7 @@ const openAdminEdit = (row) => {
 
 const saveAdminEdit = async () => {
   try {
-    await unwrap(api.put('/user/editallmessage', null, {
-      params: withToken(adminEditForm),
-    }))
+    await unwrap(api.put('/user/editallmessage', formBody(adminEditForm)))
     ElMessage.success('用户信息已更新')
     adminEditVisible.value = false
     await loadUsers()
@@ -1021,7 +1015,7 @@ onMounted(() => {
         </div>
       </header>
 
-      <section v-if="activeView === 'overview'" class="content-stack">
+      <section v-if="activeView === 'overview'" class="content-stack overview-stack">
         <div class="hero-stage">
           <div class="hero-copy">
             <p>Today Plan</p>
@@ -1131,7 +1125,7 @@ onMounted(() => {
             </div>
             <p class="muted flow-copy">{{ nextBestAction }}</p>
             <div class="onboarding-list">
-              <article v-for="item in onboardingItems" :key="item.key" :class="{ done: item.done }">
+              <article v-for="item in onboardingItems.slice(0, 3)" :key="item.key" :class="{ done: item.done }">
                 <el-icon><component :is="item.icon" /></el-icon>
                 <div>
                   <strong>{{ item.label }}</strong>
@@ -1153,7 +1147,7 @@ onMounted(() => {
               <el-button text :icon="Guide" @click="openView('guide')">动作库</el-button>
             </div>
             <div class="suggestion-list" v-if="suggestedGuides.length">
-              <article v-for="item in suggestedGuides" :key="`${item.actionPattern}-${item.actionName}`" @click="openSuggestedGuide(item)">
+              <article v-for="item in suggestedGuides.slice(0, 2)" :key="`${item.actionPattern}-${item.actionName}`" @click="openSuggestedGuide(item)">
                 <span>{{ item.actionPattern }} · {{ item.equipment }}</span>
                 <strong>{{ item.actionName || item.actionPattern }}</strong>
                 <p>{{ excerpt(item.description, 76) }}</p>
@@ -1260,7 +1254,7 @@ onMounted(() => {
         <div class="form-grid">
           <label><span>用户名</span><el-input v-model="profileForm.username" disabled /></label>
           <label><span>昵称</span><el-input v-model="profileForm.nickname" /></label>
-          <label><span>密码</span><el-input v-model="profileForm.password" show-password /></label>
+          <label><span>新密码</span><el-input v-model="profileForm.password" show-password placeholder="留空则不修改密码" /></label>
           <label><span>擅长方向</span><el-input v-model="profileForm.specialty" /></label>
           <label><span>身高 cm</span><el-input v-model="profileForm.height" type="number" /></label>
           <label><span>体重 kg</span><el-input v-model="profileForm.weight" type="number" /></label>
@@ -1308,7 +1302,7 @@ onMounted(() => {
             </div>
             <div>
               <span>训练容量</span>
-              <strong>{{ plannedVolume }} 次</strong>
+              <strong>{{ plannedVolume }} 次/秒</strong>
             </div>
             <el-button type="primary" :icon="Check" @click="savePlanCheckin">按完成情况打卡</el-button>
           </div>
@@ -1316,7 +1310,7 @@ onMounted(() => {
             <article>
               <span>今日重点</span>
               <strong>{{ splitMode || '基础训练' }}</strong>
-              <p>先保证动作质量，再追求组数和次数。</p>
+              <p>先保证动作质量，再追求组数、次数或保持时间。</p>
             </article>
             <article>
               <span>节奏建议</span>
@@ -1346,7 +1340,7 @@ onMounted(() => {
                 <h3>{{ task.actionName || task.actionPattern }}</h3>
                 <div class="task-dose">
                   <strong>{{ task.minSets }}-{{ task.maxSets }} 组</strong>
-                  <strong>{{ task.minReps }}-{{ task.maxReps }} 次</strong>
+                  <strong>{{ task.minReps }}-{{ task.maxReps }} 次/秒</strong>
                   <strong>休息 {{ task.minRestSeconds }}-{{ task.maxRestSeconds }} 秒</strong>
                 </div>
                 <p>{{ task.guideDescription || task.description }}</p>
@@ -1764,7 +1758,6 @@ onMounted(() => {
           <el-table :data="adminUsers" stripe>
             <el-table-column prop="username" label="用户名" width="130" />
             <el-table-column prop="nickname" label="昵称" width="140" />
-            <el-table-column prop="password" label="密码" width="130" />
             <el-table-column prop="identity" label="身份" width="110" />
             <el-table-column label="审核" width="110"><template #default="{ row }">{{ row.registered ? '已通过' : '待审核' }}</template></el-table-column>
             <el-table-column prop="specialty" label="方向" min-width="160" />
@@ -1784,7 +1777,7 @@ onMounted(() => {
       <div class="form-grid">
         <label><span>用户名</span><el-input v-model="adminEditForm.username" disabled /></label>
         <label><span>昵称</span><el-input v-model="adminEditForm.nickname" /></label>
-        <label><span>密码</span><el-input v-model="adminEditForm.password" /></label>
+        <label><span>新密码</span><el-input v-model="adminEditForm.password" show-password placeholder="留空则不修改密码" /></label>
         <label><span>身份</span><el-select v-model="adminEditForm.identity"><el-option label="普通用户" value="user" /><el-option label="管理员" value="ADMIN" /></el-select></label>
         <label><span>方向</span><el-input v-model="adminEditForm.specialty" /></label>
         <label><span>身高</span><el-input v-model="adminEditForm.height" type="number" /></label>
@@ -1929,16 +1922,16 @@ onMounted(() => {
 
 .main {
   min-width: 0;
-  padding: 30px;
+  padding: 24px;
 }
 
 .topbar {
-  min-height: 82px;
+  min-height: 64px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 18px;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
 }
 
 .topbar > div:first-child {
@@ -1966,7 +1959,7 @@ onMounted(() => {
 
 .topbar h1 {
   max-width: 100%;
-  font-size: clamp(24px, 3vw, 30px);
+  font-size: clamp(22px, 2.4vw, 28px);
   line-height: 1.22;
   overflow-wrap: anywhere;
 }
@@ -1996,6 +1989,10 @@ onMounted(() => {
   gap: 18px;
 }
 
+.overview-stack {
+  gap: 14px;
+}
+
 .hero-stage,
 .panel,
 .metric-card,
@@ -2015,10 +2012,10 @@ onMounted(() => {
   position: relative;
   isolation: isolate;
   min-width: 0;
-  min-height: 310px;
+  min-height: 260px;
   display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(360px, 0.95fr);
-  gap: 24px;
+  grid-template-columns: minmax(0, 1.08fr) minmax(320px, 0.92fr);
+  gap: 18px;
   align-items: stretch;
   overflow: hidden;
   background:
@@ -2047,7 +2044,7 @@ onMounted(() => {
   position: relative;
   z-index: 1;
   min-width: 0;
-  padding: 36px;
+  padding: 28px;
   display: grid;
   align-content: center;
 }
@@ -2060,25 +2057,25 @@ onMounted(() => {
 .hero-copy h2 {
   margin: 4px 0 10px;
   max-width: 760px;
-  font-size: clamp(36px, 5vw, 68px);
-  line-height: 1.02;
+  font-size: clamp(32px, 4vw, 54px);
+  line-height: 1.05;
   overflow-wrap: anywhere;
 }
 
 .hero-actions {
   justify-content: flex-start;
-  margin-top: 28px;
+  margin-top: 18px;
 }
 
 .hero-visual {
   position: relative;
   z-index: 1;
   min-width: 0;
-  min-height: 300px;
+  min-height: 244px;
   display: grid;
   align-content: center;
-  gap: 14px;
-  padding: 30px;
+  gap: 10px;
+  padding: 18px;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04)),
     repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.08) 0 1px, transparent 1px 48px);
@@ -2104,10 +2101,10 @@ onMounted(() => {
 
 .visual-ring-card {
   display: grid;
-  grid-template-columns: 132px minmax(0, 1fr);
-  gap: 18px;
+  grid-template-columns: 98px minmax(0, 1fr);
+  gap: 12px;
   align-items: center;
-  padding: 18px;
+  padding: 12px;
 }
 
 .visual-ring-card > div {
@@ -2116,7 +2113,7 @@ onMounted(() => {
 
 .progress-ring {
   position: relative;
-  width: 132px;
+  width: 98px;
   aspect-ratio: 1;
   border-radius: 50%;
   display: grid;
@@ -2129,7 +2126,7 @@ onMounted(() => {
 .progress-ring::after {
   content: "";
   position: absolute;
-  inset: 14px;
+  inset: 11px;
   border-radius: 50%;
   background: #1c5b50;
 }
@@ -2137,7 +2134,7 @@ onMounted(() => {
 .progress-ring strong {
   position: relative;
   z-index: 1;
-  font-size: 32px;
+  font-size: 26px;
 }
 
 .visual-ring-card span,
@@ -2164,7 +2161,7 @@ onMounted(() => {
 }
 
 .visual-data-grid article {
-  padding: 14px 16px;
+  padding: 10px 12px;
   min-width: 0;
 }
 
@@ -2174,13 +2171,13 @@ onMounted(() => {
 
 .visual-data-grid strong {
   display: inline-block;
-  margin-top: 8px;
-  font-size: 26px;
+  margin-top: 6px;
+  font-size: 22px;
   line-height: 1;
 }
 
 .visual-bars-card {
-  padding: 16px;
+  padding: 12px;
 }
 
 .bar-head {
@@ -2188,11 +2185,11 @@ onMounted(() => {
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 14px;
+  margin-bottom: 10px;
 }
 
 .mini-bars {
-  height: 84px;
+  height: 54px;
   display: flex;
   align-items: end;
   gap: 12px;
@@ -2214,7 +2211,7 @@ onMounted(() => {
 
 .visual-empty {
   margin: 0;
-  min-height: 84px;
+  min-height: 54px;
   display: grid;
   place-items: center;
   border: 1px dashed rgba(255, 255, 255, 0.28);
@@ -2226,7 +2223,7 @@ onMounted(() => {
 .metric-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
+  gap: 12px;
 }
 
 .metric-grid.small {
@@ -2234,8 +2231,8 @@ onMounted(() => {
 }
 
 .metric-card {
-  min-height: 118px;
-  padding: 20px;
+  min-height: 92px;
+  padding: 16px;
   display: grid;
   align-content: center;
   border-left-width: 5px;
@@ -2270,8 +2267,8 @@ onMounted(() => {
 }
 
 .metric-card strong {
-  margin-top: 8px;
-  font-size: 34px;
+  margin-top: 6px;
+  font-size: 28px;
   line-height: 1;
 }
 
@@ -2296,6 +2293,10 @@ onMounted(() => {
   min-width: 0;
 }
 
+.overview-stack .panel {
+  padding: 16px;
+}
+
 .panel-heading {
   display: flex;
   align-items: flex-start;
@@ -2304,8 +2305,16 @@ onMounted(() => {
   margin-bottom: 18px;
 }
 
+.overview-stack .panel-heading {
+  margin-bottom: 12px;
+}
+
 .panel-heading h2 {
   font-size: 24px;
+}
+
+.overview-stack .panel-heading h2 {
+  font-size: 21px;
 }
 
 .form-grid {
@@ -2347,6 +2356,10 @@ onMounted(() => {
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 16px;
+}
+
+.overview-stack .nutrition-strip {
+  margin-top: 10px;
 }
 
 .nutrition-strip span,
@@ -2395,15 +2408,31 @@ onMounted(() => {
   box-shadow: 0 16px 30px rgba(31, 49, 42, 0.08);
 }
 
+.overview-stack .readiness-score {
+  min-width: 58px;
+  height: 58px;
+  font-size: 21px;
+}
+
 .brief-body {
   display: grid;
   gap: 14px;
+}
+
+.overview-stack .brief-body {
+  gap: 10px;
 }
 
 .brief-body p {
   margin: 0;
   color: #52635b;
   line-height: 1.75;
+}
+
+.overview-stack .brief-body p,
+.overview-stack .flow-copy,
+.overview-stack .muted {
+  line-height: 1.55;
 }
 
 .brief-meter,
@@ -2446,10 +2475,21 @@ onMounted(() => {
   margin: 0 0 16px;
 }
 
+.overview-stack .flow-copy {
+  margin-bottom: 10px;
+}
+
 .onboarding-list,
 .suggestion-list {
   display: grid;
   gap: 12px;
+}
+
+.overview-stack .onboarding-list,
+.overview-stack .suggestion-list,
+.overview-stack .feed-list,
+.overview-stack .notice-list {
+  gap: 8px;
 }
 
 .onboarding-list article,
@@ -2459,6 +2499,13 @@ onMounted(() => {
   background: #fbfcf8;
   padding: 14px;
   transition: transform 190ms ease, border-color 190ms ease, box-shadow 190ms ease, background 190ms ease;
+}
+
+.overview-stack .onboarding-list article,
+.overview-stack .suggestion-list article,
+.overview-stack .feed-row,
+.overview-stack .notice-list article {
+  padding: 10px 12px;
 }
 
 .onboarding-list article {
@@ -2496,6 +2543,16 @@ onMounted(() => {
   line-height: 1.65;
 }
 
+.overview-stack .onboarding-list p,
+.overview-stack .suggestion-list p,
+.overview-stack .feed-row p {
+  display: -webkit-box;
+  overflow: hidden;
+  line-height: 1.5;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
 .suggestion-list article {
   cursor: pointer;
 }
@@ -2530,6 +2587,10 @@ onMounted(() => {
   font-weight: 800;
 }
 
+.overview-stack .empty-mini {
+  min-height: 120px;
+}
+
 .empty-mini .el-icon {
   color: #8aa097;
   font-size: 32px;
@@ -2558,6 +2619,10 @@ onMounted(() => {
   border: 1px solid #e0e6dc;
   background: #f1f4ee;
   transition: transform 180ms ease, border-color 180ms ease;
+}
+
+.overview-stack .heatmap-grid span {
+  min-height: 24px;
 }
 
 .heatmap-grid span:hover {
@@ -2660,6 +2725,10 @@ onMounted(() => {
   gap: 18px;
 }
 
+.overview-stack .progress-rows {
+  gap: 12px;
+}
+
 .progress-rows div {
   display: grid;
   grid-template-columns: 1fr auto;
@@ -2678,6 +2747,11 @@ onMounted(() => {
   border-radius: 999px;
   background: #edf0e8;
   overflow: hidden;
+}
+
+.overview-stack .progress-rows i,
+.overview-stack .brief-meter {
+  height: 8px;
 }
 
 .progress-rows b {
@@ -2705,6 +2779,10 @@ onMounted(() => {
 .timeline {
   display: grid;
   gap: 12px;
+}
+
+.overview-stack .feed-row h3 {
+  font-size: 16px;
 }
 
 .feed-row,
@@ -3361,7 +3439,7 @@ onMounted(() => {
   }
 }
 
-@media (max-width: 1280px) {
+@media (max-width: 1180px) {
   .hero-stage {
     grid-template-columns: 1fr;
   }
@@ -3416,19 +3494,55 @@ onMounted(() => {
   }
 
   .sidebar {
-    position: static;
+    position: sticky;
+    z-index: 20;
     height: auto;
-    padding: 18px;
+    padding: 10px 12px;
+    gap: 10px;
+    box-shadow: 0 10px 30px rgba(21, 42, 36, 0.16);
+  }
+
+  .brand {
+    gap: 10px;
+  }
+
+  .brand-logo {
+    width: 36px;
+    height: 36px;
+  }
+
+  .brand small,
+  .nav-list p,
+  .sidebar-user {
+    display: none;
   }
 
   .nav-list {
     display: flex;
     overflow-x: auto;
-    gap: 14px;
+    gap: 8px;
+    padding-bottom: 2px;
+    scrollbar-width: none;
   }
 
   .nav-list section {
-    min-width: 180px;
+    min-width: 0;
+    display: flex;
+    gap: 8px;
+  }
+
+  .nav-list button {
+    width: auto;
+    min-width: 94px;
+    min-height: 36px;
+    flex: 0 0 auto;
+    justify-content: center;
+    padding: 0 10px;
+  }
+
+  .nav-list button.active,
+  .nav-list button:hover {
+    transform: none;
   }
 
   .main {
@@ -3476,6 +3590,11 @@ onMounted(() => {
   .form-grid,
   .form-grid.compact {
     grid-template-columns: 1fr;
+  }
+
+  .overview-stack .metric-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
 
   .onboarding-list article {
@@ -3528,7 +3647,7 @@ onMounted(() => {
   }
 
   .sidebar {
-    padding: 14px;
+    padding: 10px 12px;
   }
 
   .topbar h1 {
@@ -3554,17 +3673,32 @@ onMounted(() => {
     padding: 14px;
   }
 
+  .overview-stack .hero-visual {
+    display: none;
+  }
+
+  .overview-stack > .metric-grid {
+    display: grid !important;
+    gap: 10px;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .overview-stack .metric-card {
+    min-height: 78px;
+    padding: 12px;
+  }
+
   .visual-ring-card,
   .visual-bars-card {
     padding: 14px;
   }
 
   .progress-ring {
-    width: 112px;
+    width: 88px;
   }
 
   .progress-ring strong {
-    font-size: 28px;
+    font-size: 24px;
   }
 
   .coverage-badge {

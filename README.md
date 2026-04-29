@@ -73,7 +73,7 @@ http://127.0.0.1:5173
 
 ## 默认账号
 
-本地演示数据库会初始化以下账号：
+本地开发数据库会初始化以下账号：
 
 ```text
 管理员：admin / admin123
@@ -81,6 +81,24 @@ http://127.0.0.1:5173
 ```
 
 管理员可以看到内容管理、用户管理等页面；普通用户主要使用训练计划、动作指导、饮食建议、打卡和内容阅读功能。
+
+## JWT 密钥配置
+
+后端会优先读取环境变量 `XIAOLANSHU_JWT_SECRET` 作为登录 token 签名密钥。本地开发不配置也能启动，但正式部署环境建议显式设置一个随机长字符串。
+
+macOS/Linux 示例：
+
+```sh
+export XIAOLANSHU_JWT_SECRET="replace-with-a-long-random-secret"
+cd fitnessGuidance
+MAVEN_USER_HOME=.m2 ./mvnw spring-boot:run
+```
+
+也可以通过 Java 系统参数传入：
+
+```sh
+MAVEN_USER_HOME=.m2 ./mvnw spring-boot:run -Dspring-boot.run.jvmArguments="-Dxiaolanshu.jwt.secret=replace-with-a-long-random-secret"
+```
 
 ## 本地数据库
 
@@ -90,14 +108,14 @@ http://127.0.0.1:5173
 fitnessGuidance/data
 ```
 
-数据库结构和初始化演示数据在：
+数据库结构和初始化数据在：
 
 ```text
 fitnessGuidance/src/main/resources/schema.sql
 fitnessGuidance/src/main/resources/data.sql
 ```
 
-如果需要重置本地演示数据，可以先停止后端服务，再删除 `fitnessGuidance/data` 目录，然后重新启动后端。
+如果需要重置本地开发数据，可以先停止后端服务，再删除 `fitnessGuidance/data` 目录，然后重新启动后端。
 
 ## 切换到 openGauss
 
@@ -107,7 +125,7 @@ fitnessGuidance/src/main/resources/data.sql
 fitnessGuidance/database/opengauss-init.sql
 ```
 
-这份脚本适合导入到新的 openGauss 数据库，里面会创建项目所需表结构并写入演示数据。注意：脚本开头会删除同名表，导入前请确认目标库可以重置。
+这份脚本适合导入到新的 openGauss 数据库，里面会创建项目所需表结构并写入初始化数据。注意：脚本开头会删除同名表，导入前请确认目标库可以重置。
 
 ### 1. 创建数据库并导入脚本
 
@@ -189,7 +207,22 @@ MAVEN_USER_HOME=.m2 ./mvnw spring-boot:run
 vue-project/public/exercise-guides
 ```
 
-页面加载图片时走 `/exercise-guides/...` 本地静态路径，不需要每次联网加载。图片来源署名和原始来源链接仍保留在动作指导页面中。
+页面加载图片时走 `/exercise-guides/...` 本地静态路径，不需要每次联网加载。当前初始化数据内的 47 条动作指导都已经配置本地图片路径，图片来源署名和原始来源链接保留在动作指导页面中。
+
+动作指导数据同时维护在两份初始化脚本里：
+
+```text
+fitnessGuidance/src/main/resources/data.sql
+fitnessGuidance/database/opengauss-init.sql
+```
+
+默认 H2 开发库会读取 `data.sql`；openGauss 环境需要重新导入 `opengauss-init.sql`。如果修改动作指导、图片路径或图片来源，需要同步更新这两份文件，避免本地开发和 openGauss 部署内容不一致。
+
+如果本地页面没有看到新图片，通常是后端正在使用旧的 H2 文件库。停止后端后删除下面目录，再重新启动后端即可重新初始化数据：
+
+```text
+fitnessGuidance/data
+```
 
 ## 常用命令
 

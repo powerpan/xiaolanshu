@@ -6,6 +6,7 @@ import com.xiaolanshu.fitnessGuidance.utils.Jwtutil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.ArrayList;
@@ -34,15 +35,16 @@ public class FitnessPlanController {
     private ExerciseGuideService exerciseGuideService;
 
     @GetMapping("/getsplitmode")
-    public Result<String> getsplitMode(String jwttoken,Integer daytime){
+    public Result<String> getsplitMode(@RequestHeader(name = "Authorization", required = false) String authorization,
+                                       String jwttoken,Integer daytime){
         //令牌验证
         try {
-            Map<String, Object> claims = Jwtutil.parseToken(jwttoken);
+            Map<String, Object> claims = Jwtutil.parseToken(resolveToken(authorization, jwttoken));
         } catch (Exception e) {
             // http 响应状态码为401
             return Result.error("未登录");
         }
-        Map<String , Object> map =Jwtutil.parseToken(jwttoken);
+        Map<String , Object> map =Jwtutil.parseToken(resolveToken(authorization, jwttoken));
         String username = String.valueOf(map.get("username"));
         UserProfile userProfile = userProfileService.getuserprofile(username); // 拿到用户信息
         if (userProfile == null) {
@@ -61,15 +63,16 @@ public class FitnessPlanController {
     }
 
     @GetMapping("/getactiontask")
-    public Result<ArrayList<ActionTask>> getactionTask(String jwttoken, Integer daytime){
+    public Result<ArrayList<ActionTask>> getactionTask(@RequestHeader(name = "Authorization", required = false) String authorization,
+                                                       String jwttoken, Integer daytime){
         //令牌验证
         try {
-            Map<String, Object> claims = Jwtutil.parseToken(jwttoken);
+            Map<String, Object> claims = Jwtutil.parseToken(resolveToken(authorization, jwttoken));
         } catch (Exception e) {
             return Result.error("未登录");
         }
 
-        Map<String, Object> map = Jwtutil.parseToken(jwttoken);
+        Map<String, Object> map = Jwtutil.parseToken(resolveToken(authorization, jwttoken));
         String username = String.valueOf(map.get("username"));
 
         UserProfile userProfile = userProfileService.getuserprofile(username);
@@ -158,5 +161,12 @@ public class FitnessPlanController {
         }
 
         return Result.success(actionTasks);
+    }
+
+    private String resolveToken(String authorization, String jwttoken) {
+        if (authorization != null && !authorization.isBlank()) {
+            return authorization;
+        }
+        return jwttoken;
     }
 }

@@ -55,16 +55,17 @@ public class NoticeController {
 
     //管理员的特殊权限
     @PutMapping("/addnotice")
-    public Result addnotice(String jwttoken,String title,String content)
+    public Result addnotice(@RequestHeader(name = "Authorization", required = false) String authorization,
+                            String jwttoken,String title,String content)
     {
         //令牌验证
         try {
-            Map<String, Object> claims = Jwtutil.parseToken(jwttoken);
+            Map<String, Object> claims = Jwtutil.parseToken(resolveToken(authorization, jwttoken));
         } catch (Exception e) {
             // http 响应状态码为401
             return Result.error("未登录");
         }
-        Map<String , Object> map =Jwtutil.parseToken(jwttoken);
+        Map<String , Object> map =Jwtutil.parseToken(resolveToken(authorization, jwttoken));
         String authorname = String.valueOf(map.get("username"));
         User u =userService.findUsername(authorname);
         if(!Objects.equals(u.getIdentity(), "ADMIN"))
@@ -76,16 +77,17 @@ public class NoticeController {
     }
 
     @PutMapping("/deletenotice")
-    public Result deletenotice(String jwttoken,String title,String content)
+    public Result deletenotice(@RequestHeader(name = "Authorization", required = false) String authorization,
+                               String jwttoken,String title,String content)
     {
         //令牌验证
         try {
-            Map<String, Object> claims = Jwtutil.parseToken(jwttoken);
+            Map<String, Object> claims = Jwtutil.parseToken(resolveToken(authorization, jwttoken));
         } catch (Exception e) {
             // http 响应状态码为401
             return Result.error("未登录");
         }
-        Map<String , Object> map =Jwtutil.parseToken(jwttoken);
+        Map<String , Object> map =Jwtutil.parseToken(resolveToken(authorization, jwttoken));
         String authorname = String.valueOf(map.get("username"));
         User u =userService.findUsername(authorname);
         if(!Objects.equals(u.getIdentity(), "ADMIN"))
@@ -97,16 +99,17 @@ public class NoticeController {
     }
 
     @PutMapping("/editnotice")
-    public Result editnotice( String jwttoken,String lasttitle,String lastcontent,String title,String content)
+    public Result editnotice(@RequestHeader(name = "Authorization", required = false) String authorization,
+                             String jwttoken,String lasttitle,String lastcontent,String title,String content)
     {
         //令牌验证
         try {
-            Map<String, Object> claims = Jwtutil.parseToken(jwttoken);
+            Map<String, Object> claims = Jwtutil.parseToken(resolveToken(authorization, jwttoken));
         } catch (Exception e) {
             // http 响应状态码为401
             return Result.error("未登录");
         }
-        Map<String , Object> map =Jwtutil.parseToken(jwttoken);
+        Map<String , Object> map =Jwtutil.parseToken(resolveToken(authorization, jwttoken));
         String authorname = String.valueOf(map.get("username"));
         User u =userService.findUsername(authorname);
         if(!Objects.equals(u.getIdentity(), "ADMIN"))
@@ -118,16 +121,17 @@ public class NoticeController {
     }
 
     @PutMapping("/savetempnotice")
-    public Result savetempnotice(String jwttoken,String title,String content)
+    public Result savetempnotice(@RequestHeader(name = "Authorization", required = false) String authorization,
+                                 String jwttoken,String title,String content)
     {
         //令牌验证
         try {
-            Map<String, Object> claims = Jwtutil.parseToken(jwttoken);
+            Map<String, Object> claims = Jwtutil.parseToken(resolveToken(authorization, jwttoken));
         } catch (Exception e) {
             // http 响应状态码为401
             return Result.error("未登录");
         }
-        Map<String , Object> map =Jwtutil.parseToken(jwttoken);
+        Map<String , Object> map =Jwtutil.parseToken(resolveToken(authorization, jwttoken));
         String authorname = String.valueOf(map.get("username"));
         User u =userService.findUsername(authorname);
         if(!Objects.equals(u.getIdentity(), "ADMIN"))
@@ -158,16 +162,17 @@ public class NoticeController {
     }
 
     @PutMapping("/deletetempnotice")
-    public Result deletetempnotice(String jwttoken)
+    public Result deletetempnotice(@RequestHeader(name = "Authorization", required = false) String authorization,
+                                   String jwttoken)
     {
         //令牌验证
         try {
-            Map<String, Object> claims = Jwtutil.parseToken(jwttoken);
+            Map<String, Object> claims = Jwtutil.parseToken(resolveToken(authorization, jwttoken));
         } catch (Exception e) {
             // http 响应状态码为401
             return Result.error("未登录");
         }
-        Map<String , Object> map =Jwtutil.parseToken(jwttoken);
+        Map<String , Object> map =Jwtutil.parseToken(resolveToken(authorization, jwttoken));
         String authorname = String.valueOf(map.get("username"));
         User u =userService.findUsername(authorname);
         if(!Objects.equals(u.getIdentity(), "ADMIN")) {

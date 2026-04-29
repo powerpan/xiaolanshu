@@ -6,6 +6,7 @@ import com.xiaolanshu.fitnessGuidance.service.ArticleService;
 import com.xiaolanshu.fitnessGuidance.service.UserProfileService;
 import com.xiaolanshu.fitnessGuidance.service.UserService;
 import com.xiaolanshu.fitnessGuidance.utils.Jwtutil;
+import com.xiaolanshu.fitnessGuidance.utils.PasswordUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -30,7 +31,7 @@ public class UserController {
     @PostMapping("/register")
     public Result register(String username , String password , String identity)
     {
-        if(username==null || password==null)
+        if(username==null || username.isBlank() || password==null || password.isBlank())
         {
             return Result.error("用户名和密码都不能为空");
         }
@@ -41,7 +42,7 @@ public class UserController {
         else {
             User preu = userService.findUsername(username);
             if (preu == null) {
-                userService.register(username, password,identity);
+                userService.register(username, password,"user");
                 return Result.success();
             } else {
                 return Result.error("用户名被占用");
@@ -52,7 +53,7 @@ public class UserController {
     @PostMapping("/login")
     public Result<String> login(String username,String password)
     {
-        if(username==null || password==null)
+        if(username==null || username.isBlank() || password==null || password.isBlank())
         {
             return Result.error("用户名和密码都不能为空");
         }
@@ -67,10 +68,21 @@ public class UserController {
                 return Result.error("用户名不存在");
             }
             else {
-                if (password.equals(preu.getPassword())) {
-                    if(preu.getRegistered()==false)
+                if (PasswordUtil.matches(password, preu.getPassword())) {
+                    if(Boolean.FALSE.equals(preu.getRegistered()))
                     {
                         return Result.error("该用户的注册未审核通过");
+                    }
+                    if (!PasswordUtil.isHashed(preu.getPassword())) {
+                        userService.editallmessage(
+                                preu.getUsername(),
+                                preu.getNickname(),
+                                password,
+                                preu.getUserpic(),
+                                preu.getIdentity(),
+                                preu.getSpecialty(),
+                                preu.getHeight(),
+                                preu.getWeight());
                     }
                     Map<String,Object> claims = new HashMap<>();
                     claims.put("id",preu.getId());
@@ -87,13 +99,14 @@ public class UserController {
     }
 
     @PutMapping("/editmessage")
-    public Result editmessage(String username,String jwttoken,String nickname,String password,String userpic,String identity
+    public Result editmessage(@RequestHeader(name = "Authorization", required = false) String authorization,
+                              String username,String jwttoken,String nickname,String password,String userpic,String identity
             ,String specialty,Double height,Double weight)
     {
         //令牌验证
         Map<String, Object> claims;
         try {
-            claims = Jwtutil.parseToken(jwttoken);
+            claims = Jwtutil.parseToken(resolveToken(authorization, jwttoken));
         } catch (Exception e) {
             return Result.error("未登录");
         }
@@ -122,16 +135,17 @@ public class UserController {
     }
 
     @PutMapping("/editallmessage")
-    public Result editallmessage(String username,String jwttoken,String nickname,String password,String userpic,String identity
+    public Result editallmessage(@RequestHeader(name = "Authorization", required = false) String authorization,
+                                 String username,String jwttoken,String nickname,String password,String userpic,String identity
             ,String specialty,Double height,Double weight)
     {
         //令牌验证
         try {
-            Map<String, Object> claims = Jwtutil.parseToken(jwttoken);
+            Map<String, Object> claims = Jwtutil.parseToken(resolveToken(authorization, jwttoken));
         } catch (Exception e) {
             return Result.error("未登录");
         }
-        Map<String , Object> map =Jwtutil.parseToken(jwttoken);
+        Map<String , Object> map =Jwtutil.parseToken(resolveToken(authorization, jwttoken));
         User preu = userService.findUsername(String.valueOf(map.get("username")));
         if(!Objects.equals(preu.getIdentity(), "ADMIN"))
         {
@@ -165,16 +179,17 @@ public class UserController {
 
     //管理员的特殊权限
     @PutMapping("/editregister")
-    public Result aditregister(String jwttoken,String username,Boolean registered)
+    public Result aditregister(@RequestHeader(name = "Authorization", required = false) String authorization,
+                               String jwttoken,String username,Boolean registered)
     {
         //令牌验证
         try {
-            Map<String, Object> claims = Jwtutil.parseToken(jwttoken);
+            Map<String, Object> claims = Jwtutil.parseToken(resolveToken(authorization, jwttoken));
         } catch (Exception e) {
             // http 响应状态码为401
             return Result.error("未登录");
         }
-        Map<String , Object> map =Jwtutil.parseToken(jwttoken);
+        Map<String , Object> map =Jwtutil.parseToken(resolveToken(authorization, jwttoken));
         String myusername = String.valueOf(map.get("username"));
         User preu = userService.findUsername(myusername);
         if(!Objects.equals(preu.getIdentity(), "ADMIN"))
@@ -192,23 +207,24 @@ public class UserController {
 
     //管理员的特殊权限
     @PostMapping("/adduser")
-    public Result adduser(String jwttoken,String username,String password,String identity)
+    public Result adduser(@RequestHeader(name = "Authorization", required = false) String authorization,
+                          String jwttoken,String username,String password,String identity)
     {
         //令牌验证
         try {
-            Map<String, Object> claims = Jwtutil.parseToken(jwttoken);
+            Map<String, Object> claims = Jwtutil.parseToken(resolveToken(authorization, jwttoken));
         } catch (Exception e) {
             // http 响应状态码为401
             return Result.error("未登录");
         }
-        Map<String , Object> map =Jwtutil.parseToken(jwttoken);
+        Map<String , Object> map =Jwtutil.parseToken(resolveToken(authorization, jwttoken));
         String myusername = String.valueOf(map.get("username"));
         User thepreu = userService.findUsername(myusername);
         if(!Objects.equals(thepreu.getIdentity(), "ADMIN"))
         {
             return Result.error("无相关权限");
         }
-        if(username.isEmpty() || password.isEmpty())
+        if(username == null || username.isBlank() || password == null || password.isBlank())
         {
             return Result.error("用户名和密码都不能为空");
         }
@@ -230,16 +246,17 @@ public class UserController {
 
     //管理员的特殊权限
     @PutMapping ("/deleteuser")
-    public Result deleteuser(String jwttoken,String username)
+    public Result deleteuser(@RequestHeader(name = "Authorization", required = false) String authorization,
+                             String jwttoken,String username)
     {
         //令牌验证
         try {
-            Map<String, Object> claims = Jwtutil.parseToken(jwttoken);
+            Map<String, Object> claims = Jwtutil.parseToken(resolveToken(authorization, jwttoken));
         } catch (Exception e) {
             // http 响应状态码为401
             return Result.error("未登录");
         }
-        Map<String , Object> map = Jwtutil.parseToken(jwttoken);
+        Map<String , Object> map = Jwtutil.parseToken(resolveToken(authorization, jwttoken));
         String myusername = String.valueOf(map.get("username"));
         User preu = userService.findUsername(myusername);
         if(!Objects.equals(preu.getIdentity(), "ADMIN"))
@@ -251,6 +268,13 @@ public class UserController {
         articleService.deleteallarticle(username);
         //System.out.println(username);
         return Result.success();
+    }
+
+    private String resolveToken(String authorization, String jwttoken) {
+        if (authorization != null && !authorization.isBlank()) {
+            return authorization;
+        }
+        return jwttoken;
     }
 
 }

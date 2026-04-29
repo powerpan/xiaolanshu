@@ -13,7 +13,7 @@ public interface UserProfileMapper {
             "SET fitnessGoal = #{fitnessGoal}, " +
             "weeklyFrequency = #{weeklyFrequency}, " +
             "equipment = #{equipment}, "+
-            "exLevel = #{exLevel}"+
+            "exLevel = #{exLevel} "+
             "WHERE username = #{username}")
     void edituserprofile(String username,String fitnessGoal,Integer weeklyFrequency,String equipment,String exLevel);
 

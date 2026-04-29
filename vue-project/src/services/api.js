@@ -8,7 +8,7 @@ const api = axios.create({
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('jwttoken')
   if (token) {
-    config.headers.Authorization = token
+    config.headers.Authorization = `Bearer ${token}`
   }
   return config
 })
@@ -16,9 +16,18 @@ api.interceptors.request.use((config) => {
 export const getToken = () => localStorage.getItem('jwttoken') || ''
 
 export const withToken = (params = {}) => ({
-  jwttoken: getToken(),
   ...params,
 })
+
+export const formBody = (params = {}) => {
+  const body = new URLSearchParams()
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) {
+      body.append(key, value)
+    }
+  })
+  return body
+}
 
 export async function unwrap(request) {
   const response = await request
