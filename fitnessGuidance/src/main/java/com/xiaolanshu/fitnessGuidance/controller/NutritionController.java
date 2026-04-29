@@ -53,10 +53,17 @@ public class NutritionController {
         }
 
         NutritionRecommendation recommendation = new NutritionRecommendation();
-        recommendation.setTargetCalories(Math.max(calories, 1300));
-        recommendation.setProteinGrams((int) Math.round(weight * proteinRatio));
+        int safeCalories = Math.max(calories, 1300);
+        int proteinGrams = (int) Math.round(weight * proteinRatio);
+        int fatGrams = (int) Math.round(weight * 0.8);
+        int carbohydrateGrams = Math.max(100, (safeCalories - proteinGrams * 4 - fatGrams * 9) / 4);
+        recommendation.setTargetCalories(safeCalories);
+        recommendation.setProteinGrams(proteinGrams);
+        recommendation.setCarbohydrateGrams(carbohydrateGrams);
+        recommendation.setFatGrams(fatGrams);
         recommendation.setWaterMl((int) Math.round(weight * 35));
         recommendation.setSummary("根据当前目标「" + goal + "」生成的日常饮食参考，可按训练日饥饿感上下微调。");
+        recommendation.setTrainingDayTip("训练前 1 到 2 小时优先安排易消化碳水；训练后 2 小时内补足蛋白质和水分。");
 
         ArrayList<String> meals = new ArrayList<>();
         meals.add("早餐：全谷物主食 + 鸡蛋或无糖酸奶 + 一份水果");
@@ -69,6 +76,7 @@ public class NutritionController {
         tips.add("每餐先保证蛋白质，再调整主食和脂肪。");
         tips.add("训练日可以略提高碳水，休息日保持蔬菜和水分。");
         tips.add("连续两周体重和围度无变化时，再微调热量。");
+        tips.add("睡眠不足或训练状态差时，不建议通过继续削减热量来加速目标。");
         recommendation.setTips(tips);
 
         return recommendation;

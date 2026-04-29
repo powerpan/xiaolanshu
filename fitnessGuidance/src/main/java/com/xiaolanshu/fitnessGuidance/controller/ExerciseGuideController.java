@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.ArrayList;
 import java.util.Map;
 
 @RestController
@@ -31,6 +32,16 @@ public class ExerciseGuideController {
         ExerciseGuide exerciseGuide = exerciseGuideService.getexerciseguide(actionPattern,equipment);
         //System.out.println(exerciseGuide);
         return Result.success(exerciseGuide);
+    }
+
+    @GetMapping("/list")
+    public Result<ArrayList<ExerciseGuide>> list(String jwttoken, String actionPattern, String equipment) {
+        try {
+            Map<String, Object> claims = Jwtutil.parseToken(jwttoken);
+        } catch (Exception e) {
+            return Result.error("未登录");
+        }
+        return Result.success(exerciseGuideService.listexerciseguides(actionPattern, equipment));
     }
 
 }

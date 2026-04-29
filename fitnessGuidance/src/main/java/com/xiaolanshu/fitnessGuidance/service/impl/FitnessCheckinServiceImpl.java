@@ -36,11 +36,16 @@ public class FitnessCheckinServiceImpl implements FitnessCheckinService {
         CheckinStats stats = new CheckinStats();
         LocalDate monthStart = LocalDate.now().withDayOfMonth(1);
         LocalDate nextMonthStart = monthStart.plusMonths(1);
-        stats.setTotalDays(fitnessCheckinMapper.countAll(username));
-        stats.setTotalMinutes(fitnessCheckinMapper.sumMinutes(username));
+        Integer totalDays = fitnessCheckinMapper.countAll(username);
+        Integer totalMinutes = fitnessCheckinMapper.sumMinutes(username);
+        stats.setTotalDays(totalDays);
+        stats.setTotalMinutes(totalMinutes);
+        stats.setAverageMinutes(totalDays == null || totalDays == 0 ? 0 : totalMinutes / totalDays);
         stats.setMonthDays(fitnessCheckinMapper.countInDateRange(username, monthStart, nextMonthStart));
-        stats.setRecentCheckins(fitnessCheckinMapper.recent(username, 8));
-        stats.setCurrentStreak(calculateStreak(fitnessCheckinMapper.allDatesDesc(username)));
+        stats.setRecentCheckins(fitnessCheckinMapper.recent(username, 42));
+        ArrayList<LocalDate> dates = fitnessCheckinMapper.allDatesDesc(username);
+        stats.setCurrentStreak(calculateStreak(dates));
+        stats.setBestStreak(calculateBestStreak(dates));
         return stats;
     }
 
@@ -67,5 +72,31 @@ public class FitnessCheckinServiceImpl implements FitnessCheckinService {
         }
 
         return streak;
+    }
+
+    private Integer calculateBestStreak(ArrayList<LocalDate> dates) {
+        if (dates == null || dates.isEmpty()) {
+            return 0;
+        }
+
+        int best = 0;
+        int current = 0;
+        LocalDate previous = null;
+
+        for (int i = dates.size() - 1; i >= 0; i--) {
+            LocalDate date = dates.get(i);
+            if (date == null) {
+                continue;
+            }
+            if (previous == null || date.equals(previous.plusDays(1))) {
+                current++;
+            } else if (!date.equals(previous)) {
+                current = 1;
+            }
+            best = Math.max(best, current);
+            previous = date;
+        }
+
+        return best;
     }
 }

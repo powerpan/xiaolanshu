@@ -47,11 +47,14 @@ const actionTasks = ref([])
 const splitMode = ref('')
 const selectedDay = ref(1)
 const guideResult = ref(null)
+const guideLibrary = ref([])
+const guideLibraryLoading = ref(false)
 const todayCheckin = ref(null)
 const checkinStats = ref(null)
 const nutrition = ref(null)
 const selectedArticle = ref(null)
 const selectedNotice = ref(null)
+const checkedTasks = ref({})
 
 const isAdmin = computed(() => user.value?.identity === 'ADMIN')
 const displayName = computed(() => user.value?.nickname || user.value?.username || '用户')
@@ -125,6 +128,11 @@ const guideForm = reactive({
   equipment: '徒手',
 })
 
+const guideFilters = reactive({
+  actionPattern: '',
+  equipment: '',
+})
+
 const checkinForm = reactive({
   durationMinutes: 35,
   mood: '状态不错',
@@ -143,6 +151,7 @@ const navGroups = computed(() => [
     items: [
       { key: 'overview', label: '首页', icon: House },
       { key: 'checkin', label: '训练打卡', icon: Calendar },
+      { key: 'insights', label: '训练复盘', icon: DataAnalysis },
       { key: 'nutrition', label: '饮食建议', icon: Food },
     ],
   },
@@ -192,9 +201,168 @@ const noticeParagraphs = computed(() => splitParagraphs(selectedNotice.value?.co
 const checkinPercent = computed(() => Math.min(100, Math.round(((checkinStats.value?.monthDays || 0) / 18) * 100)))
 const planPercent = computed(() => Math.min(100, Math.round((weeklyFrequency.value / 6) * 100)))
 const proteinPercent = computed(() => Math.min(100, Math.round(((nutrition.value?.proteinGrams || 0) / 140) * 100)))
+const recentCheckins = computed(() => checkinStats.value?.recentCheckins || [])
+const timelineRecords = computed(() => recentCheckins.value.slice(0, 10))
 const heroBars = computed(() => {
-  const records = (checkinStats.value?.recentCheckins || []).slice(0, 5).reverse()
+  const records = recentCheckins.value.slice(0, 5).reverse()
   return records.map((item) => Math.min(100, Math.max(18, Math.round(((item.durationMinutes || 0) / 60) * 100))))
+})
+const todayKey = computed(() => formatLocalDate(new Date()))
+const planCheckKey = computed(() => `xl-plan-${user.value?.username || 'guest'}-${todayKey.value}-${selectedDay.value}`)
+const completedTaskMap = computed(() => checkedTasks.value[planCheckKey.value] || {})
+const completedTaskCount = computed(() => Object.values(completedTaskMap.value).filter(Boolean).length)
+const dayCompletionPercent = computed(() => {
+  if (!actionTasks.value.length) return 0
+  return Math.round((completedTaskCount.value / actionTasks.value.length) * 100)
+})
+const estimatedMinutes = computed(() => {
+  if (!actionTasks.value.length) return 0
+  const workMinutes = actionTasks.value.reduce((sum, task) => sum + Number(task.maxSets || task.minSets || 2) * 3, 0)
+  return Math.max(20, Math.round(workMinutes + actionTasks.value.length * 4))
+})
+const plannedVolume = computed(() => actionTasks.value.reduce((sum, task) => {
+  const sets = Number(task.maxSets || task.minSets || 0)
+  const reps = Number(task.maxReps || task.minReps || 0)
+  return sum + sets * reps
+}, 0))
+const readinessScore = computed(() => {
+  const streak = Number(checkinStats.value?.currentStreak || 0)
+  const avg = Number(checkinStats.value?.averageMinutes || 0)
+  const trainedToday = todayCheckin.value ? 12 : 0
+  const frequencyBonus = Math.min(12, Number(weeklyFrequency.value || 0) * 2)
+  return Math.min(100, Math.round(46 + streak * 5 + avg * 0.35 + trainedToday + frequencyBonus))
+})
+const macroItems = computed(() => [
+  { label: '蛋白质', value: nutrition.value?.proteinGrams || 0, unit: 'g', percent: proteinPercent.value },
+  { label: '碳水', value: nutrition.value?.carbohydrateGrams || 0, unit: 'g', percent: Math.min(100, Math.round(((nutrition.value?.carbohydrateGrams || 0) / 320) * 100)) },
+  { label: '脂肪', value: nutrition.value?.fatGrams || 0, unit: 'g', percent: Math.min(100, Math.round(((nutrition.value?.fatGrams || 0) / 90) * 100)) },
+  { label: '饮水', value: nutrition.value?.waterMl || 0, unit: 'ml', percent: Math.min(100, Math.round(((nutrition.value?.waterMl || 0) / 3000) * 100)) },
+])
+const heatmapDays = computed(() => {
+  const recordMap = new Map(recentCheckins.value.map((item) => [String(item.checkinDate), item]))
+  const days = []
+  const cursor = new Date()
+  cursor.setHours(0, 0, 0, 0)
+  for (let offset = 34; offset >= 0; offset -= 1) {
+    const date = new Date(cursor)
+    date.setDate(cursor.getDate() - offset)
+    const key = formatLocalDate(date)
+    const record = recordMap.get(key)
+    const minutes = Number(record?.durationMinutes || 0)
+    days.push({
+      key,
+      label: `${date.getMonth() + 1}/${date.getDate()}`,
+      minutes,
+      mood: record?.mood || '',
+      level: minutes >= 50 ? 4 : minutes >= 35 ? 3 : minutes >= 20 ? 2 : minutes > 0 ? 1 : 0,
+    })
+  }
+  return days
+})
+const coachingTips = computed(() => {
+  const tips = []
+  if (!todayCheckin.value) {
+    tips.push({ title: '今日优先级', body: `完成第 ${selectedDay.value} 天训练，预计 ${estimatedMinutes.value || 30} 分钟。` })
+  } else {
+    tips.push({ title: '今日状态', body: `已记录 ${todayCheckin.value.durationMinutes || 0} 分钟，建议补充水分并记录动作感受。` })
+  }
+  tips.push({ title: '计划调整', body: `当前目标为「${goalText.value}」，每周 ${weeklyFrequency.value || 0} 次；连续两周稳定后再提高训练量。` })
+  tips.push({ title: '饮食配合', body: nutrition.value?.trainingDayTip || '训练日前后优先补足蛋白质、水分和易消化碳水。' })
+  return tips
+})
+const guideCoverage = computed(() => {
+  const patterns = new Set(guideLibrary.value.map((item) => item.actionPattern).filter(Boolean))
+  const equipmentsUsed = new Set(guideLibrary.value.map((item) => item.equipment).filter(Boolean))
+  return { patterns: patterns.size, equipments: equipmentsUsed.size, total: guideLibrary.value.length }
+})
+const profileCompleteness = computed(() => {
+  const checks = [
+    Boolean(user.value?.nickname),
+    Boolean(user.value?.height),
+    Boolean(user.value?.weight),
+    Boolean(user.value?.specialty),
+    Boolean(profile.value?.fitnessGoal),
+    Boolean(profile.value?.weeklyFrequency),
+    Boolean(profile.value?.equipment),
+    Boolean(profile.value?.exLevel),
+  ]
+  return Math.round((checks.filter(Boolean).length / checks.length) * 100)
+})
+const nextBestAction = computed(() => {
+  if (profileCompleteness.value < 75) return '先补全身体数据和训练偏好，计划会更稳定。'
+  if (!todayCheckin.value) return `完成第 ${selectedDay.value} 天训练并保存打卡。`
+  if (!nutrition.value?.trainingDayTip) return '刷新饮食建议，确认训练日前后的补给策略。'
+  return '今天已经形成闭环，建议查看复盘趋势并准备下一次训练。'
+})
+const onboardingItems = computed(() => [
+  {
+    key: 'profile',
+    icon: User,
+    label: '完善身体资料',
+    body: '身高、体重、昵称和训练方向会影响饮食建议展示。',
+    done: profileCompleteness.value >= 50,
+    action: 'profile',
+  },
+  {
+    key: 'fitness',
+    icon: Aim,
+    label: '配置训练目标',
+    body: `当前目标「${goalText.value}」，每周 ${weeklyFrequency.value || 0} 次。`,
+    done: Boolean(profile.value?.fitnessGoal && profile.value?.equipment && profile.value?.exLevel),
+    action: 'fitness',
+  },
+  {
+    key: 'plan',
+    icon: TrendCharts,
+    label: '生成今日计划',
+    body: actionTasks.value.length ? `已生成 ${actionTasks.value.length} 个动作。` : '暂无动作，请先生成训练需求。',
+    done: actionTasks.value.length > 0,
+    action: 'plan',
+  },
+  {
+    key: 'checkin',
+    icon: Calendar,
+    label: '完成训练打卡',
+    body: todayCheckin.value ? `已记录 ${todayCheckin.value.durationMinutes || 0} 分钟。` : '训练后记录时长、状态和备注。',
+    done: Boolean(todayCheckin.value),
+    action: 'checkin',
+  },
+])
+const achievementCards = computed(() => [
+  {
+    label: '启动训练',
+    value: '1 次打卡',
+    done: Number(checkinStats.value?.totalDays || 0) >= 1,
+  },
+  {
+    label: '稳定连续',
+    value: '连续 3 天',
+    done: Number(checkinStats.value?.bestStreak || 0) >= 3,
+  },
+  {
+    label: '百分钟积累',
+    value: '累计 100 分钟',
+    done: Number(checkinStats.value?.totalMinutes || 0) >= 100,
+  },
+  {
+    label: '计划执行',
+    value: '完成今日动作',
+    done: actionTasks.value.length > 0 && completedTaskCount.value === actionTasks.value.length,
+  },
+])
+const suggestedGuides = computed(() => {
+  const seen = new Set()
+  const byPattern = actionTasks.value
+    .map((task) => guideLibrary.value.find((guide) => guide.actionPattern === task.actionPattern))
+    .filter(Boolean)
+  return byPattern
+    .filter((item) => {
+      const key = `${item.actionPattern}-${item.equipment}-${item.actionName}`
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+    .slice(0, 4)
 })
 
 const ensureToken = () => {
@@ -208,6 +376,13 @@ const ensureToken = () => {
 const formatDate = (value) => {
   if (!value) return '-'
   return String(value).replace('T', ' ').slice(0, 16)
+}
+
+const formatLocalDate = (date) => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
 const excerpt = (value, limit = 108) => {
@@ -238,6 +413,29 @@ const markGuideImageBroken = () => {
 }
 
 const readingMinutes = (value) => Math.max(1, Math.ceil(String(value || '').length / 360))
+
+const restoreTaskState = () => {
+  try {
+    checkedTasks.value = JSON.parse(localStorage.getItem('xl-task-completions') || '{}')
+  } catch (error) {
+    checkedTasks.value = {}
+  }
+}
+
+const persistTaskState = () => {
+  localStorage.setItem('xl-task-completions', JSON.stringify(checkedTasks.value))
+}
+
+const isTaskDone = (index) => Boolean(completedTaskMap.value[index])
+
+const toggleTaskDone = (index, value) => {
+  const current = { ...completedTaskMap.value, [index]: value }
+  checkedTasks.value = {
+    ...checkedTasks.value,
+    [planCheckKey.value]: current,
+  }
+  persistTaskState()
+}
 
 const topicTone = (topic = '') => {
   const tones = ['mint', 'sun', 'sky', 'rose']
@@ -327,6 +525,41 @@ const loadGuide = async () => {
   guideResult.value = withExerciseMediaState(result)
 }
 
+const loadGuideLibrary = async () => {
+  guideLibraryLoading.value = true
+  try {
+    guideLibrary.value = await unwrap(api.get('/exerciseguide/list', {
+      params: withToken({
+        actionPattern: guideFilters.actionPattern || undefined,
+        equipment: guideFilters.equipment || undefined,
+      }),
+    }))
+  } finally {
+    guideLibraryLoading.value = false
+  }
+}
+
+const clearGuideFilters = async () => {
+  Object.assign(guideFilters, { actionPattern: '', equipment: '' })
+  await loadGuideLibrary()
+}
+
+const openGuideFromLibrary = (item) => {
+  guideResult.value = withExerciseMediaState(item)
+  Object.assign(guideForm, {
+    actionPattern: item.actionPattern || guideForm.actionPattern,
+    equipment: item.equipment || guideForm.equipment,
+  })
+}
+
+const openSuggestedGuide = (item) => {
+  openGuideFromLibrary(item)
+  activeView.value = 'guide'
+  if (route.name !== 'mainpage') {
+    router.replace('/mainpage')
+  }
+}
+
 const loadCheckin = async () => {
   const [today, stats] = await Promise.all([
     unwrap(api.get('/checkin/today')),
@@ -387,6 +620,7 @@ const bootstrap = async () => {
       loadArticles(),
       loadCheckin(),
       loadNutrition(),
+      loadGuideLibrary(),
     ]
     if (isAdmin.value) {
       tasks.push(loadMyArticles(), loadUsers())
@@ -421,7 +655,9 @@ const openView = async (key) => {
     if (key === 'notices') await loadNotices()
     if (key === 'articles') await loadArticles()
     if (key === 'plan') await loadPlan(selectedDay.value || 1)
+    if (key === 'guide') await loadGuideLibrary()
     if (key === 'checkin') await loadCheckin()
+    if (key === 'insights') await loadCheckin()
     if (key === 'nutrition') await loadNutrition()
   } catch (error) {
     ElMessage.error(error.message || '加载失败')
@@ -710,13 +946,34 @@ const saveCheckin = async () => {
   }
 }
 
+const savePlanCheckin = async () => {
+  if (!actionTasks.value.length) {
+    ElMessage.warning('当前没有可打卡的训练动作')
+    return
+  }
+  if (!completedTaskCount.value) {
+    ElMessage.warning('先勾选已完成的动作')
+    return
+  }
+
+  Object.assign(checkinForm, {
+    durationMinutes: Math.max(Number(checkinForm.durationMinutes || 0), estimatedMinutes.value),
+    mood: completedTaskCount.value === actionTasks.value.length ? '状态不错' : '有挑战',
+    note: `完成第 ${selectedDay.value} 天「${splitMode.value || '训练计划'}」：${completedTaskCount.value}/${actionTasks.value.length} 个动作。`,
+  })
+  await saveCheckin()
+}
+
 const logout = () => {
   localStorage.removeItem('jwttoken')
   router.replace('/')
 }
 
 watch(() => route.fullPath, syncRouteDetail)
-onMounted(bootstrap)
+onMounted(() => {
+  restoreTaskState()
+  bootstrap()
+})
 </script>
 
 <template>
@@ -821,6 +1078,92 @@ onMounted(bootstrap)
             <strong>{{ card.value }}</strong>
             <small>{{ card.unit }}</small>
           </article>
+        </div>
+
+        <div class="product-command-grid">
+          <section class="panel action-brief">
+            <div class="panel-heading">
+              <div>
+                <p>今日执行</p>
+                <h2>训练指挥台</h2>
+              </div>
+              <strong class="readiness-score" :style="{ '--score': readinessScore }">{{ readinessScore }}</strong>
+            </div>
+            <div class="brief-body">
+              <div class="brief-meter">
+                <i :style="{ width: `${readinessScore}%` }"></i>
+              </div>
+              <p>{{ todayCheckin ? '今日训练已记录，建议关注恢复和饮食执行。' : `建议完成「${splitMode || nextWorkoutTitle}」，预计 ${estimatedMinutes || 30} 分钟。` }}</p>
+              <div class="brief-actions">
+                <el-button type="primary" :icon="TrendCharts" @click="openView('plan')">进入计划</el-button>
+                <el-button :icon="DataAnalysis" @click="openView('insights')">看复盘</el-button>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel heatmap-panel">
+            <div class="panel-heading">
+              <div>
+                <p>习惯热力</p>
+                <h2>最近 35 天</h2>
+              </div>
+              <span class="coverage-badge">最佳连续 {{ checkinStats?.bestStreak || 0 }} 天</span>
+            </div>
+            <div class="heatmap-grid">
+              <span
+                v-for="day in heatmapDays"
+                :key="day.key"
+                :class="`level-${day.level}`"
+                :title="`${day.label} · ${day.minutes || 0} 分钟 ${day.mood || ''}`"
+              ></span>
+            </div>
+          </section>
+        </div>
+
+        <div class="product-flow-grid">
+          <section class="panel onboarding-panel">
+            <div class="panel-heading">
+              <div>
+                <p>产品引导</p>
+                <h2>训练闭环完成度</h2>
+              </div>
+              <strong class="completion-pill">{{ profileCompleteness }}%</strong>
+            </div>
+            <p class="muted flow-copy">{{ nextBestAction }}</p>
+            <div class="onboarding-list">
+              <article v-for="item in onboardingItems" :key="item.key" :class="{ done: item.done }">
+                <el-icon><component :is="item.icon" /></el-icon>
+                <div>
+                  <strong>{{ item.label }}</strong>
+                  <p>{{ item.body }}</p>
+                </div>
+                <el-button size="small" :type="item.done ? 'success' : 'primary'" plain @click="openView(item.action)">
+                  {{ item.done ? '已完成' : '去完善' }}
+                </el-button>
+              </article>
+            </div>
+          </section>
+
+          <section class="panel guide-suggestion-panel">
+            <div class="panel-heading">
+              <div>
+                <p>动作提示</p>
+                <h2>今日计划相关动作</h2>
+              </div>
+              <el-button text :icon="Guide" @click="openView('guide')">动作库</el-button>
+            </div>
+            <div class="suggestion-list" v-if="suggestedGuides.length">
+              <article v-for="item in suggestedGuides" :key="`${item.actionPattern}-${item.actionName}`" @click="openSuggestedGuide(item)">
+                <span>{{ item.actionPattern }} · {{ item.equipment }}</span>
+                <strong>{{ item.actionName || item.actionPattern }}</strong>
+                <p>{{ excerpt(item.description, 76) }}</p>
+              </article>
+            </div>
+            <div v-else class="empty-mini">
+              <el-icon><Guide /></el-icon>
+              <span>生成计划后会自动推荐相关动作指导。</span>
+            </div>
+          </section>
         </div>
 
         <div class="dashboard-grid">
@@ -953,8 +1296,51 @@ onMounted(bootstrap)
               </button>
             </div>
           </div>
+          <div class="plan-execution-bar">
+            <div>
+              <span>执行进度</span>
+              <strong>{{ completedTaskCount }}/{{ actionTasks.length }} 个动作</strong>
+              <i><b :style="{ width: `${dayCompletionPercent}%` }"></b></i>
+            </div>
+            <div>
+              <span>预计时长</span>
+              <strong>{{ estimatedMinutes }} 分钟</strong>
+            </div>
+            <div>
+              <span>训练容量</span>
+              <strong>{{ plannedVolume }} 次</strong>
+            </div>
+            <el-button type="primary" :icon="Check" @click="savePlanCheckin">按完成情况打卡</el-button>
+          </div>
+          <div class="plan-coach-strip">
+            <article>
+              <span>今日重点</span>
+              <strong>{{ splitMode || '基础训练' }}</strong>
+              <p>先保证动作质量，再追求组数和次数。</p>
+            </article>
+            <article>
+              <span>节奏建议</span>
+              <strong>{{ estimatedMinutes || 30 }} 分钟</strong>
+              <p>每组之间按计划休息，动作变形时主动降级。</p>
+            </article>
+            <article>
+              <span>结束标准</span>
+              <strong>{{ completedTaskCount }}/{{ actionTasks.length }}</strong>
+              <p>勾选完成动作后可直接生成今日打卡记录。</p>
+            </article>
+          </div>
           <div class="task-grid">
-            <article v-for="task in actionTasks" :key="`${task.actionPattern}-${task.description}`" class="task-card">
+            <article
+              v-for="(task, index) in actionTasks"
+              :key="`${task.actionPattern}-${task.description}`"
+              class="task-card"
+              :class="{ done: isTaskDone(index) }"
+            >
+              <div class="task-checkbar">
+                <el-checkbox :model-value="isTaskDone(index)" @change="(value) => toggleTaskDone(index, value)">
+                  动作 {{ index + 1 }} 已完成
+                </el-checkbox>
+              </div>
               <div class="task-body">
                 <span>{{ task.actionPattern }}</span>
                 <h3>{{ task.actionName || task.actionPattern }}</h3>
@@ -985,50 +1371,82 @@ onMounted(bootstrap)
         </div>
       </section>
 
-      <section v-if="activeView === 'guide'" class="panel">
-        <div class="panel-heading">
-          <div>
-            <p>动作库</p>
-            <h2>动作指导</h2>
-          </div>
-          <el-button type="primary" :icon="Search" @click="loadGuide">搜索动作</el-button>
-        </div>
-        <div class="form-grid compact">
-          <label><span>动作模式</span><el-select v-model="guideForm.actionPattern"><el-option v-for="item in actionPatterns" :key="item" :label="item" :value="item" /></el-select></label>
-          <label><span>器材</span><el-select v-model="guideForm.equipment"><el-option v-for="item in equipments" :key="item" :label="item" :value="item" /></el-select></label>
-        </div>
-        <div v-if="guideResult" class="result-block">
-          <div class="result-media">
-            <img
-              v-if="guideResult.imageurl && !guideResult.imageBroken"
-              :src="guideResult.imageurl"
-              :alt="`${guideResult.actionName || guideResult.actionPattern}动作图`"
-              loading="lazy"
-              decoding="async"
-              @error="markGuideImageBroken"
-            />
-            <div v-else class="task-placeholder">
-              <el-icon><Guide /></el-icon>
-            </div>
-            <a v-if="guideResult.imageSourceUrl" class="image-source" :href="guideResult.imageSourceUrl" target="_blank" rel="noreferrer">
-              图片来源<span v-if="guideResult.imageCredit"> · {{ guideResult.imageCredit }}</span>
-            </a>
-          </div>
-          <h3>{{ guideResult.actionName || guideResult.actionPattern }} · {{ guideResult.equipment }}</h3>
-          <p>{{ guideResult.description || '暂无说明' }}</p>
-          <div class="guide-columns">
+      <section v-if="activeView === 'guide'" class="content-stack">
+        <div class="panel">
+          <div class="panel-heading">
             <div>
-              <h4>执行步骤</h4>
-              <ol>
-                <li v-for="step in splitGuideText(guideResult.steps)" :key="step">{{ step }}</li>
-              </ol>
+              <p>动作库</p>
+              <h2>动作指导</h2>
             </div>
+            <el-button type="primary" :icon="Search" @click="loadGuide">搜索动作</el-button>
+          </div>
+          <div class="form-grid compact">
+            <label><span>动作模式</span><el-select v-model="guideForm.actionPattern"><el-option v-for="item in actionPatterns" :key="item" :label="item" :value="item" /></el-select></label>
+            <label><span>器材</span><el-select v-model="guideForm.equipment"><el-option v-for="item in equipments" :key="item" :label="item" :value="item" /></el-select></label>
+          </div>
+          <div v-if="guideResult" class="result-block">
+            <div class="result-media">
+              <img
+                v-if="guideResult.imageurl && !guideResult.imageBroken"
+                :src="guideResult.imageurl"
+                :alt="`${guideResult.actionName || guideResult.actionPattern}动作图`"
+                loading="lazy"
+                decoding="async"
+                @error="markGuideImageBroken"
+              />
+              <div v-else class="task-placeholder">
+                <el-icon><Guide /></el-icon>
+              </div>
+              <a v-if="guideResult.imageSourceUrl" class="image-source" :href="guideResult.imageSourceUrl" target="_blank" rel="noreferrer">
+                图片来源<span v-if="guideResult.imageCredit"> · {{ guideResult.imageCredit }}</span>
+              </a>
+            </div>
+            <h3>{{ guideResult.actionName || guideResult.actionPattern }} · {{ guideResult.equipment }}</h3>
+            <p>{{ guideResult.description || '暂无说明' }}</p>
+            <div class="guide-columns">
+              <div>
+                <h4>执行步骤</h4>
+                <ol>
+                  <li v-for="step in splitGuideText(guideResult.steps)" :key="step">{{ step }}</li>
+                </ol>
+              </div>
+              <div>
+                <h4>训练要点</h4>
+                <ul>
+                  <li v-for="tip in splitGuideText(guideResult.tips)" :key="tip">{{ tip }}</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-heading">
             <div>
-              <h4>训练要点</h4>
-              <ul>
-                <li v-for="tip in splitGuideText(guideResult.tips)" :key="tip">{{ tip }}</li>
-              </ul>
+              <p>动作百科</p>
+              <h2>{{ guideCoverage.total }} 个动作指导</h2>
             </div>
+            <span class="coverage-badge">{{ guideCoverage.patterns }} 类模式 · {{ guideCoverage.equipments }} 类器材</span>
+          </div>
+          <div class="form-grid compact guide-filter-row">
+            <label><span>动作模式</span><el-select v-model="guideFilters.actionPattern" clearable><el-option v-for="item in actionPatterns" :key="item" :label="item" :value="item" /></el-select></label>
+            <label><span>器材</span><el-select v-model="guideFilters.equipment" clearable><el-option v-for="item in equipments" :key="item" :label="item" :value="item" /></el-select></label>
+            <div class="field-action">
+              <el-button type="primary" :icon="Search" :loading="guideLibraryLoading" @click="loadGuideLibrary">筛选</el-button>
+              <el-button @click="clearGuideFilters">重置</el-button>
+            </div>
+          </div>
+          <div class="guide-library-grid">
+            <article v-for="item in guideLibrary" :key="`${item.actionPattern}-${item.equipment}-${item.id}`" class="guide-library-card" @click="openGuideFromLibrary(item)">
+              <img v-if="item.imageurl" :src="item.imageurl" :alt="`${item.actionName || item.actionPattern}动作图`" loading="lazy" decoding="async" />
+              <div v-else class="task-placeholder"><el-icon><Guide /></el-icon></div>
+              <div>
+                <span>{{ item.actionPattern }} · {{ item.equipment }}</span>
+                <h3>{{ item.actionName || item.actionPattern }}</h3>
+                <p>{{ excerpt(item.description, 88) }}</p>
+              </div>
+            </article>
+            <el-empty v-if="!guideLibrary.length && !guideLibraryLoading" description="暂无动作指导" />
           </div>
         </div>
       </section>
@@ -1061,7 +1479,7 @@ onMounted(bootstrap)
             </div>
           </div>
           <div class="timeline">
-            <div v-for="item in checkinStats?.recentCheckins || []" :key="item.id" class="timeline-row">
+            <div v-for="item in timelineRecords" :key="item.id" class="timeline-row">
               <span>{{ item.checkinDate }}</span>
               <strong>{{ item.durationMinutes }} 分钟</strong>
               <small>{{ item.mood || '-' }}</small>
@@ -1070,6 +1488,71 @@ onMounted(bootstrap)
             <el-empty v-if="!checkinStats?.recentCheckins?.length" description="暂无打卡" />
           </div>
         </div>
+      </section>
+
+      <section v-if="activeView === 'insights'" class="content-stack">
+        <div class="page-intro insights-intro">
+          <p>训练复盘</p>
+          <h2>从记录里看趋势，而不是只看单次表现</h2>
+          <span>基于最近打卡、计划频率、营养建议和当前目标生成复盘视图。</span>
+        </div>
+        <div class="metric-grid small">
+          <article class="metric-card green"><span>准备度</span><strong>{{ readinessScore }}</strong><small>/100</small></article>
+          <article class="metric-card orange"><span>最佳连续</span><strong>{{ checkinStats?.bestStreak || 0 }}</strong><small>天</small></article>
+          <article class="metric-card blue"><span>平均时长</span><strong>{{ checkinStats?.averageMinutes || 0 }}</strong><small>分钟</small></article>
+        </div>
+        <div class="dashboard-grid">
+          <section class="panel heatmap-panel expanded">
+            <div class="panel-heading">
+              <div>
+                <p>执行日历</p>
+                <h2>最近 35 天训练热力</h2>
+              </div>
+            </div>
+            <div class="heatmap-grid large">
+              <span
+                v-for="day in heatmapDays"
+                :key="day.key"
+                :class="`level-${day.level}`"
+                :title="`${day.key} · ${day.minutes || 0} 分钟 ${day.mood || ''}`"
+              >
+                <small>{{ day.label }}</small>
+              </span>
+            </div>
+          </section>
+          <section class="panel">
+            <div class="panel-heading">
+              <div>
+                <p>教练建议</p>
+                <h2>下一步怎么做</h2>
+              </div>
+            </div>
+            <div class="coach-tip-list">
+              <article v-for="tip in coachingTips" :key="tip.title">
+                <span></span>
+                <div>
+                  <strong>{{ tip.title }}</strong>
+                  <p>{{ tip.body }}</p>
+                </div>
+              </article>
+            </div>
+          </section>
+        </div>
+        <section class="panel achievement-panel">
+          <div class="panel-heading">
+            <div>
+              <p>成就墙</p>
+              <h2>把训练行为变成可见进度</h2>
+            </div>
+          </div>
+          <div class="achievement-grid">
+            <article v-for="item in achievementCards" :key="item.label" :class="{ done: item.done }">
+              <span><el-icon><Check /></el-icon></span>
+              <strong>{{ item.label }}</strong>
+              <small>{{ item.value }}</small>
+            </article>
+          </div>
+        </section>
       </section>
 
       <section v-if="activeView === 'nutrition'" class="panel">
@@ -1085,7 +1568,17 @@ onMounted(bootstrap)
           <article class="metric-card orange"><span>蛋白质</span><strong>{{ nutrition?.proteinGrams || 0 }}</strong><small>g</small></article>
           <article class="metric-card blue"><span>饮水</span><strong>{{ nutrition?.waterMl || 0 }}</strong><small>ml</small></article>
         </div>
+        <div class="macro-grid">
+          <article v-for="item in macroItems" :key="item.label">
+            <div>
+              <span>{{ item.label }}</span>
+              <strong>{{ item.value }}{{ item.unit }}</strong>
+            </div>
+            <i><b :style="{ width: `${item.percent}%` }"></b></i>
+          </article>
+        </div>
         <p class="muted block-copy">{{ nutrition?.summary }}</p>
+        <p class="training-day-tip">{{ nutrition?.trainingDayTip }}</p>
         <div class="two-column">
           <div class="reader-box">
             <h3>一日结构</h3>
@@ -1314,6 +1807,7 @@ onMounted(bootstrap)
 <style scoped>
 .workspace-shell {
   min-height: 100vh;
+  width: 100%;
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr);
   background:
@@ -1447,6 +1941,10 @@ onMounted(bootstrap)
   margin-bottom: 24px;
 }
 
+.topbar > div:first-child {
+  min-width: 0;
+}
+
 .topbar p,
 .panel-heading p,
 .hero-copy p,
@@ -1467,7 +1965,10 @@ onMounted(bootstrap)
 }
 
 .topbar h1 {
-  font-size: 30px;
+  max-width: 100%;
+  font-size: clamp(24px, 3vw, 30px);
+  line-height: 1.22;
+  overflow-wrap: anywhere;
 }
 
 .topbar-actions,
@@ -1513,6 +2014,7 @@ onMounted(bootstrap)
 .hero-stage {
   position: relative;
   isolation: isolate;
+  min-width: 0;
   min-height: 310px;
   display: grid;
   grid-template-columns: minmax(0, 1.05fr) minmax(360px, 0.95fr);
@@ -1544,6 +2046,7 @@ onMounted(bootstrap)
 .hero-copy {
   position: relative;
   z-index: 1;
+  min-width: 0;
   padding: 36px;
   display: grid;
   align-content: center;
@@ -1559,6 +2062,7 @@ onMounted(bootstrap)
   max-width: 760px;
   font-size: clamp(36px, 5vw, 68px);
   line-height: 1.02;
+  overflow-wrap: anywhere;
 }
 
 .hero-actions {
@@ -1569,6 +2073,7 @@ onMounted(bootstrap)
 .hero-visual {
   position: relative;
   z-index: 1;
+  min-width: 0;
   min-height: 300px;
   display: grid;
   align-content: center;
@@ -1605,6 +2110,10 @@ onMounted(bootstrap)
   padding: 18px;
 }
 
+.visual-ring-card > div {
+  min-width: 0;
+}
+
 .progress-ring {
   position: relative;
   width: 132px;
@@ -1637,6 +2146,7 @@ onMounted(bootstrap)
   display: block;
   color: rgba(255, 255, 255, 0.88);
   font-weight: 900;
+  overflow-wrap: anywhere;
 }
 
 .visual-ring-card small,
@@ -1645,6 +2155,7 @@ onMounted(bootstrap)
   display: block;
   margin-top: 4px;
   color: rgba(255, 255, 255, 0.66);
+  overflow-wrap: anywhere;
 }
 
 .visual-data-grid {
@@ -1772,7 +2283,9 @@ onMounted(bootstrap)
 .dashboard-grid,
 .home-content-grid,
 .two-column,
-.admin-grid {
+.admin-grid,
+.product-command-grid,
+.product-flow-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px;
@@ -1861,6 +2374,285 @@ onMounted(bootstrap)
 .segmented button:hover {
   transform: translateY(-2px);
   border-color: #9cc8b7;
+}
+
+.action-brief .panel-heading {
+  align-items: center;
+}
+
+.readiness-score {
+  min-width: 74px;
+  height: 74px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at 50% 50%, #fff 0 56%, transparent 57%),
+    conic-gradient(#2c8f72 calc(var(--score, 72) * 1%), #e7ece4 0);
+  border: 1px solid #dfe6dc;
+  color: #174f42;
+  font-size: 24px;
+  box-shadow: 0 16px 30px rgba(31, 49, 42, 0.08);
+}
+
+.brief-body {
+  display: grid;
+  gap: 14px;
+}
+
+.brief-body p {
+  margin: 0;
+  color: #52635b;
+  line-height: 1.75;
+}
+
+.brief-meter,
+.macro-grid i,
+.plan-execution-bar i {
+  height: 10px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: #edf0e8;
+}
+
+.brief-meter i,
+.macro-grid b,
+.plan-execution-bar b {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #2c8f72, #85d4ff, #f2c35d);
+  transition: width 520ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.brief-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.completion-pill {
+  min-width: 74px;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #173f37;
+  color: #fff;
+  text-align: center;
+  font-size: 20px;
+  box-shadow: 0 14px 28px rgba(23, 63, 55, 0.14);
+}
+
+.flow-copy {
+  margin: 0 0 16px;
+}
+
+.onboarding-list,
+.suggestion-list {
+  display: grid;
+  gap: 12px;
+}
+
+.onboarding-list article,
+.suggestion-list article {
+  border: 1px solid #e0e6dc;
+  border-radius: 8px;
+  background: #fbfcf8;
+  padding: 14px;
+  transition: transform 190ms ease, border-color 190ms ease, box-shadow 190ms ease, background 190ms ease;
+}
+
+.onboarding-list article {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.onboarding-list article > .el-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: #eaf6ef;
+  color: #2c8f72;
+  font-size: 20px;
+}
+
+.onboarding-list article.done {
+  border-color: #bde0cf;
+  background: #f4fbf6;
+}
+
+.onboarding-list strong,
+.suggestion-list strong {
+  color: #17211c;
+}
+
+.onboarding-list p,
+.suggestion-list p {
+  margin: 5px 0 0;
+  color: #607169;
+  line-height: 1.65;
+}
+
+.suggestion-list article {
+  cursor: pointer;
+}
+
+.suggestion-list article:hover,
+.onboarding-list article:hover {
+  transform: translateY(-3px);
+  border-color: #b8d3c8;
+  background: #fff;
+  box-shadow: 0 16px 30px rgba(31, 49, 42, 0.08);
+}
+
+.suggestion-list span {
+  display: block;
+  margin-bottom: 6px;
+  color: #c65f3d;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.empty-mini {
+  min-height: 220px;
+  border: 1px dashed #d0dbd4;
+  border-radius: 8px;
+  background: #fbfcf8;
+  color: #607169;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 10px;
+  text-align: center;
+  font-weight: 800;
+}
+
+.empty-mini .el-icon {
+  color: #8aa097;
+  font-size: 32px;
+}
+
+.coverage-badge {
+  border: 1px solid #dce2d8;
+  border-radius: 8px;
+  background: #f8faf5;
+  color: #385046;
+  padding: 8px 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.heatmap-grid {
+  display: grid;
+  grid-template-columns: repeat(35, minmax(8px, 1fr));
+  gap: 5px;
+  align-items: end;
+}
+
+.heatmap-grid span {
+  min-height: 34px;
+  border-radius: 6px;
+  border: 1px solid #e0e6dc;
+  background: #f1f4ee;
+  transition: transform 180ms ease, border-color 180ms ease;
+}
+
+.heatmap-grid span:hover {
+  transform: translateY(-3px);
+  border-color: #9cc8b7;
+}
+
+.heatmap-grid .level-1 { background: #dff4ea; }
+.heatmap-grid .level-2 { background: #b9e5d3; }
+.heatmap-grid .level-3 { background: #6fc19f; }
+.heatmap-grid .level-4 { background: #2c8f72; }
+
+.heatmap-grid.large {
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.heatmap-grid.large span {
+  min-height: 72px;
+  display: flex;
+  align-items: flex-end;
+  padding: 8px;
+}
+
+.heatmap-grid.large small {
+  color: rgba(23, 42, 36, 0.72);
+  font-weight: 800;
+}
+
+.heatmap-grid.large .level-3 small,
+.heatmap-grid.large .level-4 small {
+  color: #fff;
+}
+
+.plan-execution-bar {
+  display: grid;
+  grid-template-columns: minmax(240px, 1.4fr) repeat(2, minmax(120px, 0.6fr)) auto;
+  gap: 12px;
+  align-items: stretch;
+  margin-bottom: 18px;
+}
+
+.plan-execution-bar > div {
+  border: 1px solid #dfe4da;
+  border-radius: 8px;
+  background: #fbfcf8;
+  padding: 12px;
+  display: grid;
+  align-content: center;
+  gap: 8px;
+}
+
+.plan-execution-bar span {
+  color: #66766f;
+  font-weight: 800;
+}
+
+.plan-execution-bar strong {
+  color: #17211c;
+  font-size: 18px;
+}
+
+.plan-coach-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.plan-coach-strip article {
+  border: 1px solid #dfe4da;
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, #fff, #f8fbf6);
+  padding: 14px;
+}
+
+.plan-coach-strip span {
+  display: block;
+  color: #c65f3d;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.plan-coach-strip strong {
+  display: block;
+  margin-top: 6px;
+  color: #17211c;
+  font-size: 20px;
+}
+
+.plan-coach-strip p {
+  margin: 8px 0 0;
+  color: #607169;
+  line-height: 1.65;
 }
 
 .progress-rows {
@@ -2055,6 +2847,21 @@ onMounted(bootstrap)
   transform: translateY(-5px);
   border-color: #b7d1c7;
   box-shadow: 0 24px 58px rgba(31, 49, 42, 0.13);
+}
+
+.task-card.done {
+  border-color: #85c9ad;
+  background: linear-gradient(180deg, #fff, #f3fbf6);
+}
+
+.task-card.done .task-body {
+  opacity: 0.82;
+}
+
+.task-checkbar {
+  border-bottom: 1px solid #edf0ea;
+  background: #f8faf5;
+  padding: 10px 14px;
 }
 
 .result-media:hover img {
@@ -2286,6 +3093,63 @@ onMounted(bootstrap)
   transition: transform 360ms ease, filter 360ms ease;
 }
 
+.guide-filter-row {
+  margin-bottom: 18px;
+}
+
+.guide-library-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.guide-library-card {
+  border: 1px solid #dfe4da;
+  border-radius: 8px;
+  background: #fff;
+  overflow: hidden;
+  cursor: pointer;
+  display: grid;
+  grid-template-rows: 180px minmax(0, 1fr);
+  transition: transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease;
+}
+
+.guide-library-card:hover {
+  transform: translateY(-5px);
+  border-color: #b7d1c7;
+  box-shadow: 0 22px 50px rgba(31, 49, 42, 0.12);
+}
+
+.guide-library-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: linear-gradient(135deg, #eef5ef, #f7f1df);
+  padding: 12px;
+}
+
+.guide-library-card > div:last-child {
+  padding: 14px;
+  display: grid;
+  gap: 8px;
+}
+
+.guide-library-card span {
+  color: #c65f3d;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.guide-library-card h3,
+.guide-library-card p {
+  margin: 0;
+}
+
+.guide-library-card p {
+  color: #5b6c64;
+  line-height: 1.65;
+}
+
 .clean-list {
   margin: 12px 0 0;
   padding-left: 18px;
@@ -2317,6 +3181,131 @@ onMounted(bootstrap)
   justify-content: flex-end;
   gap: 8px;
   margin-top: 12px;
+}
+
+.insights-intro {
+  background:
+    linear-gradient(120deg, rgba(255, 255, 255, 0.96), rgba(236, 247, 241, 0.96)),
+    repeating-linear-gradient(90deg, rgba(44, 143, 114, 0.08) 0 1px, transparent 1px 42px);
+}
+
+.coach-tip-list {
+  display: grid;
+  gap: 14px;
+}
+
+.coach-tip-list article {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr);
+  gap: 12px;
+  border: 1px solid #edf0ea;
+  border-radius: 8px;
+  background: #fbfcf8;
+  padding: 14px;
+}
+
+.coach-tip-list span {
+  width: 12px;
+  min-height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #2c8f72, #85d4ff);
+}
+
+.coach-tip-list strong {
+  color: #17211c;
+}
+
+.coach-tip-list p {
+  margin: 6px 0 0;
+  color: #5b6c64;
+  line-height: 1.7;
+}
+
+.achievement-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.achievement-grid article {
+  border: 1px solid #e0e6dc;
+  border-radius: 8px;
+  background: #fbfcf8;
+  padding: 16px;
+  display: grid;
+  gap: 8px;
+  transition: transform 190ms ease, border-color 190ms ease, box-shadow 190ms ease;
+}
+
+.achievement-grid article.done {
+  border-color: #b9dccb;
+  background: linear-gradient(180deg, #fff, #f1fbf5);
+}
+
+.achievement-grid article:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 16px 30px rgba(31, 49, 42, 0.08);
+}
+
+.achievement-grid span {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #e9eee6;
+  color: #8a9a92;
+}
+
+.achievement-grid article.done span {
+  background: #2c8f72;
+  color: #fff;
+}
+
+.achievement-grid strong {
+  color: #17211c;
+}
+
+.achievement-grid small {
+  color: #66766f;
+  font-weight: 800;
+}
+
+.macro-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 18px 0;
+}
+
+.macro-grid article {
+  border: 1px solid #dfe4da;
+  border-radius: 8px;
+  background: #fbfcf8;
+  padding: 14px;
+  display: grid;
+  gap: 12px;
+}
+
+.macro-grid article div {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.macro-grid span {
+  color: #66766f;
+  font-weight: 800;
+}
+
+.training-day-tip {
+  border-left: 5px solid #2c8f72;
+  border-radius: 8px;
+  background: #f4faf6;
+  padding: 14px 16px;
+  color: #31443c;
+  font-weight: 800;
+  line-height: 1.7;
 }
 
 @keyframes surface-in {
@@ -2383,7 +3372,8 @@ onMounted(bootstrap)
 
   .notice-grid,
   .article-grid,
-  .task-grid {
+  .task-grid,
+  .guide-library-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -2396,8 +3386,11 @@ onMounted(bootstrap)
   .metric-grid,
   .dashboard-grid,
   .home-content-grid,
+  .product-command-grid,
+  .product-flow-grid,
   .two-column,
   .admin-grid,
+  .macro-grid,
   .reader-page,
   .guide-columns {
     grid-template-columns: 1fr;
@@ -2405,6 +3398,15 @@ onMounted(bootstrap)
 
   .form-grid.compact {
     grid-template-columns: repeat(2, minmax(180px, 1fr));
+  }
+
+  .plan-execution-bar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .plan-coach-strip,
+  .achievement-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -2433,6 +3435,10 @@ onMounted(bootstrap)
     padding: 18px;
   }
 
+  .topbar h1 {
+    font-size: 26px;
+  }
+
   .topbar,
   .panel-heading,
   .feed-row,
@@ -2449,6 +3455,11 @@ onMounted(bootstrap)
     width: 100%;
   }
 
+  .hero-actions .el-button,
+  .topbar-actions .el-button {
+    flex: 1 1 150px;
+  }
+
   .panel-heading > .el-button {
     justify-content: center;
   }
@@ -2458,9 +3469,25 @@ onMounted(bootstrap)
   .notice-grid,
   .article-grid,
   .task-grid,
+  .guide-library-grid,
+  .plan-execution-bar,
+  .plan-coach-strip,
+  .achievement-grid,
   .form-grid,
   .form-grid.compact {
     grid-template-columns: 1fr;
+  }
+
+  .onboarding-list article {
+    grid-template-columns: 42px minmax(0, 1fr);
+  }
+
+  .onboarding-list article .el-button {
+    grid-column: 1 / -1;
+  }
+
+  .heatmap-grid {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
   }
 
   .hero-copy {
@@ -2492,6 +3519,71 @@ onMounted(bootstrap)
   .hero-copy h2,
   .page-intro h2 {
     font-size: 34px;
+  }
+}
+
+@media (max-width: 520px) {
+  .main {
+    padding: 14px;
+  }
+
+  .sidebar {
+    padding: 14px;
+  }
+
+  .topbar h1 {
+    font-size: 24px;
+  }
+
+  .hero-stage {
+    min-height: 0;
+  }
+
+  .hero-copy {
+    padding: 24px 18px;
+  }
+
+  .hero-copy h2,
+  .page-intro h2 {
+    font-size: 30px;
+    line-height: 1.08;
+  }
+
+  .hero-visual {
+    min-height: 0;
+    padding: 14px;
+  }
+
+  .visual-ring-card,
+  .visual-bars-card {
+    padding: 14px;
+  }
+
+  .progress-ring {
+    width: 112px;
+  }
+
+  .progress-ring strong {
+    font-size: 28px;
+  }
+
+  .coverage-badge {
+    width: 100%;
+    white-space: normal;
+    text-align: center;
+  }
+
+  .heatmap-grid span {
+    min-height: 30px;
+  }
+
+  .heatmap-grid.large span {
+    min-height: 54px;
+    padding: 6px;
+  }
+
+  .feed-row {
+    gap: 12px;
   }
 }
 </style>

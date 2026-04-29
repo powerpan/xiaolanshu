@@ -8,7 +8,9 @@ import java.util.ArrayList;
 public class CheckinStats {
     private Integer totalDays;
     private Integer currentStreak;
+    private Integer bestStreak;
     private Integer monthDays;
     private Integer totalMinutes;
+    private Integer averageMinutes;
     private ArrayList<FitnessCheckin> recentCheckins;
 }
