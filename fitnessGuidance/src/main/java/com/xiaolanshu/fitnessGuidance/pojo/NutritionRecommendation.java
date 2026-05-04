@@ -15,11 +15,16 @@ public class NutritionRecommendation {
     private Integer fatGrams;
     private Integer waterMl;
     private String summary;
+    private String preferenceSummary;
     private String trainingDayTip;
     private String restDayTip;
     private ArrayList<String> meals;
+    private ArrayList<String> trainingDayMeals;
+    private ArrayList<String> restDayMeals;
     private ArrayList<String> tips;
     private ArrayList<String> mealTiming;
     private ArrayList<String> foodChoices;
+    private ArrayList<String> replacements;
+    private ArrayList<String> shoppingList;
     private ArrayList<String> watchouts;
 }

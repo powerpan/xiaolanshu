@@ -10,6 +10,12 @@ MERGE INTO userprofiles (
 ('admin', '保持健康', 3, '徒手', '新手'),
 ('demo', '保持健康', 3, '徒手', '新手');
 
+MERGE INTO nutritionpreferences (
+    username, diettype, allergies, budgetlevel, eatingoutfrequency, mealcount, tastepreference
+) KEY(username) VALUES
+('demo', '均衡饮食', '无', '中等', '偶尔外食', 4, '清淡'),
+('admin', '高蛋白', '无', '中等', '很少外食', 4, '清淡');
+
 MERGE INTO notices (
     id, title, content, author, noticetime
 ) KEY(id) VALUES
@@ -231,6 +237,18 @@ MERGE INTO exerciseguides (
 UPDATE exerciseguides
 SET imageurl = NULL, imagecredit = NULL, imagesourceurl = NULL
 WHERE imageurl LIKE '/exercise-guides/%';
+
+UPDATE exerciseguides SET primarymuscles = '胸大肌、三角肌前束、肱三头肌', secondarymuscles = '核心、前锯肌', difficulty = '新手', contraindications = '肩肘疼痛明显时先降低幅度或更换动作。', commonmistakes = '塌腰、耸肩、下降过快、手腕过度折叠。', suitablefor = '需要提升上肢推力和胸肩控制的训练者。', alternatives = '跪姿俯卧撑、哑铃卧推、弹力带胸推、坐姿推胸机。' WHERE actionpattern = '水平推';
+UPDATE exerciseguides SET primarymuscles = '三角肌、肱三头肌', secondarymuscles = '上胸、核心、斜方肌下束', difficulty = '进阶', contraindications = '肩峰撞击感或腰椎代偿明显时先降低重量。', commonmistakes = '腰部后仰、耸肩顶脖子、推举路径过度前移。', suitablefor = '需要提升肩部推举和上肢稳定能力的训练者。', alternatives = 'Pike 俯卧撑、哑铃肩推、杠铃推举、肩推机。' WHERE actionpattern = '垂直推';
+UPDATE exerciseguides SET primarymuscles = '背阔肌、菱形肌、斜方肌中下束', secondarymuscles = '肱二头肌、后三角肌、核心', difficulty = '新手', contraindications = '下背无法稳定或肩部拉扯痛时先减小幅度。', commonmistakes = '耸肩、含胸、用腰甩动、只拉手臂不收肩胛。', suitablefor = '需要改善背部厚度、体态和肩胛控制的训练者。', alternatives = '反向划船、哑铃划船、弹力带划船、坐姿划船机。' WHERE actionpattern = '水平拉';
+UPDATE exerciseguides SET primarymuscles = '背阔肌、大圆肌、肱二头肌', secondarymuscles = '下斜方肌、核心、握力', difficulty = '进阶', contraindications = '肩部上举疼痛或握力不足时先使用辅助版本。', commonmistakes = '身体摆动、后仰过多、耸肩、下放失控。', suitablefor = '需要提升背阔肌发力和垂直拉能力的训练者。', alternatives = '弹力带下拉、辅助引体向上、高位下拉。' WHERE actionpattern = '垂直拉';
+UPDATE exerciseguides SET primarymuscles = '股四头肌、臀大肌', secondarymuscles = '腘绳肌、小腿、核心', difficulty = '新手', contraindications = '膝髋疼痛明显或无法稳定下蹲时先缩小幅度。', commonmistakes = '膝盖内扣、脚跟离地、弯腰塌背、底部松掉核心。', suitablefor = '需要提升下肢基础力量和日常蹲起能力的训练者。', alternatives = '徒手深蹲、高脚杯深蹲、杠铃深蹲、腿举机。' WHERE actionpattern = '下肢蹲';
+UPDATE exerciseguides SET primarymuscles = '臀大肌、腘绳肌', secondarymuscles = '竖脊肌、背阔肌、核心', difficulty = '进阶', contraindications = '下背疼痛或无法保持中立位时先练徒手髋铰链。', commonmistakes = '弯腰代替髋折叠、重量离身体太远、站起时过度后仰。', suitablefor = '需要强化后链、臀腿发力和硬拉基础的训练者。', alternatives = '早安式、罗马尼亚硬拉、弹力带拉穿、绳索拉穿。' WHERE actionpattern = '髋铰链';
+UPDATE exerciseguides SET primarymuscles = '股四头肌、臀大肌、臀中肌', secondarymuscles = '腘绳肌、小腿、核心', difficulty = '进阶', contraindications = '平衡差或膝踝不稳时先扶墙或降低幅度。', commonmistakes = '步幅过小、膝盖内扣、身体前后晃动、左右次数不一致。', suitablefor = '需要改善单侧力量、平衡和左右差异的训练者。', alternatives = '反向箭步蹲、分腿蹲、台阶上步、扶墙单腿蹲。' WHERE actionpattern = '单腿训练';
+UPDATE exerciseguides SET primarymuscles = '腹横肌、腹直肌、腹斜肌', secondarymuscles = '臀部、肩胛稳定肌、髋屈肌', difficulty = '新手', contraindications = '腰痛明显或无法控制骨盆时先缩短保持时间。', commonmistakes = '塌腰、撅臀、憋气、用脖子代偿。', suitablefor = '需要提升躯干稳定和动作控制的训练者。', alternatives = '平板支撑、死虫、鸟狗、Pallof Press、悬垂举膝。' WHERE actionpattern = '核心稳定';
+UPDATE exerciseguides SET primarymuscles = '肱二头肌、肱肌', secondarymuscles = '前臂屈肌、肩部稳定肌', difficulty = '新手', contraindications = '肘腕疼痛时先降低阻力并检查手腕角度。', commonmistakes = '身体后仰借力、肘部前后摆动、下放失控。', suitablefor = '需要补足手臂拉力和肘屈控制的训练者。', alternatives = '自阻力弯举、哑铃弯举、弹力带弯举、绳索弯举。' WHERE actionpattern = '手臂弯举';
+UPDATE exerciseguides SET primarymuscles = '肱三头肌', secondarymuscles = '肩部稳定肌、胸大肌', difficulty = '新手', contraindications = '肩肘不适时先缩小幅度或换成弹力带版本。', commonmistakes = '肘部外翻、肩膀耸起、下降过深、用身体摆动借力。', suitablefor = '需要补足推类动作辅助力量的训练者。', alternatives = '窄距俯卧撑、椅上臂屈伸、哑铃臂屈伸、绳索下压。' WHERE actionpattern = '手臂伸展';
+UPDATE exerciseguides SET primarymuscles = '肩、胸椎、髋、踝活动链', secondarymuscles = '轻度核心和稳定肌群', difficulty = '新手', contraindications = '任何关节刺痛都应停止并缩小活动范围。', commonmistakes = '动作过快、追求疲劳感、忽略呼吸、拉伸到疼痛。', suitablefor = '训练前热身、训练后整理和恢复日活动。', alternatives = '肩绕环、胸椎旋转、髋屈伸动态拉伸、弹力带轻阻力激活。' WHERE actionpattern = '灵活恢复';
 
 MERGE INTO fitnesscheckins (
     username, checkin_date, duration_minutes, mood, note, created_at

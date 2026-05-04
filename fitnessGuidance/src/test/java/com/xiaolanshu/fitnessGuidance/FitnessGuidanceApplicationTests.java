@@ -2,8 +2,10 @@ package com.xiaolanshu.fitnessGuidance;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.xiaolanshu.fitnessGuidance.mapper.ExerciseGuideMapper;
+import com.xiaolanshu.fitnessGuidance.mapper.NutritionPreferenceMapper;
 import com.xiaolanshu.fitnessGuidance.mapper.NoticeMapper;
 import com.xiaolanshu.fitnessGuidance.pojo.ExerciseGuide;
+import com.xiaolanshu.fitnessGuidance.pojo.NutritionPreference;
 import com.xiaolanshu.fitnessGuidance.pojo.Notice;
 import com.xiaolanshu.fitnessGuidance.pojo.User;
 import org.junit.jupiter.api.Test;
@@ -31,6 +33,9 @@ class FitnessGuidanceApplicationTests {
 
     @Autowired
     private ExerciseGuideMapper exerciseGuideMapper;
+
+    @Autowired
+    private NutritionPreferenceMapper nutritionPreferenceMapper;
 
     @Test
     void contextLoads() {
@@ -94,6 +99,8 @@ class FitnessGuidanceApplicationTests {
         guide.setDescription("测试描述");
         guide.setSteps("第一步|第二步");
         guide.setTips("要点一|要点二");
+        guide.setPrimaryMuscles("测试主肌群");
+        guide.setCommonMistakes("测试常见错误");
         exerciseGuideMapper.addExerciseGuide(guide);
 
         List<ExerciseGuide> created = exerciseGuideMapper.listexerciseguides(actionPattern, equipment, false);
@@ -111,9 +118,38 @@ class FitnessGuidanceApplicationTests {
             assertThat(updated.getActionName()).isEqualTo("测试动作名称-已更新");
             assertThat(updated.getImageurl()).isEqualTo("/uploads/exercise-guides/test.png");
             assertThat(updated.getImageCredit()).isEqualTo("管理员上传");
+            assertThat(updated.getPrimaryMuscles()).isEqualTo("测试主肌群");
+            assertThat(updated.getCommonMistakes()).isEqualTo("测试常见错误");
         } finally {
             exerciseGuideMapper.deleteExerciseGuide(id);
         }
+    }
+
+    @Test
+    void nutritionPreferenceCanBeInsertedAndUpdated() {
+        String username = "preference-" + System.nanoTime();
+        NutritionPreference preference = new NutritionPreference();
+        preference.setUsername(username);
+        preference.setDietType("高蛋白");
+        preference.setAllergies("乳糖不耐");
+        preference.setBudgetLevel("中等");
+        preference.setEatingOutFrequency("偶尔外食");
+        preference.setMealCount(4);
+        preference.setTastePreference("清淡");
+        nutritionPreferenceMapper.insert(preference);
+
+        NutritionPreference created = nutritionPreferenceMapper.findByUsername(username);
+        assertThat(created.getDietType()).isEqualTo("高蛋白");
+        assertThat(created.getAllergies()).isEqualTo("乳糖不耐");
+
+        created.setBudgetLevel("经济");
+        created.setMealCount(3);
+        Integer updatedRows = nutritionPreferenceMapper.update(created);
+
+        NutritionPreference updated = nutritionPreferenceMapper.findByUsername(username);
+        assertThat(updatedRows).isEqualTo(1);
+        assertThat(updated.getBudgetLevel()).isEqualTo("经济");
+        assertThat(updated.getMealCount()).isEqualTo(3);
     }
 
 }

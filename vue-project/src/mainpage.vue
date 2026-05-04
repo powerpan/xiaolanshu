@@ -60,7 +60,11 @@ import {
   updateExerciseGuide,
   uploadExerciseGuideImage,
 } from './services/exerciseGuideApi'
-import { getNutritionRecommendation } from './services/nutritionApi'
+import {
+  getNutritionPreference,
+  getNutritionRecommendation,
+  updateNutritionPreference,
+} from './services/nutritionApi'
 import {
   getActionTasks,
   getCheckinStats,
@@ -198,6 +202,13 @@ const guideAdminForm = reactive({
   description: '',
   steps: '',
   tips: '',
+  primaryMuscles: '',
+  secondaryMuscles: '',
+  difficulty: '新手',
+  contraindications: '',
+  commonMistakes: '',
+  suitableFor: '',
+  alternatives: '',
   imageurl: '',
 })
 
@@ -209,7 +220,23 @@ const guideEditForm = reactive({
   description: '',
   steps: '',
   tips: '',
+  primaryMuscles: '',
+  secondaryMuscles: '',
+  difficulty: '新手',
+  contraindications: '',
+  commonMistakes: '',
+  suitableFor: '',
+  alternatives: '',
   imageurl: '',
+})
+
+const nutritionPreferenceForm = reactive({
+  dietType: '均衡饮食',
+  allergies: '',
+  budgetLevel: '中等',
+  eatingOutFrequency: '偶尔外食',
+  mealCount: 4,
+  tastePreference: '清淡',
 })
 
 const checkinForm = reactive({
@@ -223,6 +250,10 @@ const equipments = ['徒手', '哑铃', '弹力带', '杠铃', '单杠', '综合
 const levels = ['新手', '进阶', '熟练', '资深']
 const actionPatterns = ['水平推', '垂直推', '水平拉', '垂直拉', '下肢蹲', '髋铰链', '单腿训练', '核心稳定', '手臂弯举', '手臂伸展', '灵活恢复']
 const moods = ['状态不错', '轻松', '有挑战', '需要恢复']
+const dietTypes = ['均衡饮食', '高蛋白', '低脂', '素食友好', '控糖']
+const budgetLevels = ['经济', '中等', '充足']
+const eatingOutFrequencies = ['很少外食', '偶尔外食', '经常外食']
+const tastePreferences = ['清淡', '家常', '偏辣', '偏甜', '少油少盐']
 
 const userViewKeys = new Set(['overview', 'profile', 'fitness', 'plan', 'guide', 'checkin', 'insights', 'nutrition', 'notices', 'articles', 'articleDetail', 'noticeDetail'])
 const adminViewKeys = new Set(['contentAdmin', 'guideAdmin', 'admin', 'articleDetail', 'noticeDetail'])
@@ -636,6 +667,13 @@ const resetGuideAdminForm = () => {
     description: '',
     steps: '',
     tips: '',
+    primaryMuscles: '',
+    secondaryMuscles: '',
+    difficulty: '新手',
+    contraindications: '',
+    commonMistakes: '',
+    suitableFor: '',
+    alternatives: '',
     imageurl: '',
   })
 }
@@ -649,6 +687,13 @@ const openGuideAdminEdit = (item) => {
     description: item.description || '',
     steps: item.steps || '',
     tips: item.tips || '',
+    primaryMuscles: item.primaryMuscles || '',
+    secondaryMuscles: item.secondaryMuscles || '',
+    difficulty: item.difficulty || '新手',
+    contraindications: item.contraindications || '',
+    commonMistakes: item.commonMistakes || '',
+    suitableFor: item.suitableFor || '',
+    alternatives: item.alternatives || '',
     imageurl: item.imageurl || '',
   })
   guideEditVisible.value = true
@@ -760,6 +805,18 @@ const loadNutrition = async () => {
   nutrition.value = await getNutritionRecommendation()
 }
 
+const loadNutritionPreference = async () => {
+  const preference = await getNutritionPreference()
+  Object.assign(nutritionPreferenceForm, {
+    dietType: preference?.dietType || '均衡饮食',
+    allergies: preference?.allergies || '',
+    budgetLevel: preference?.budgetLevel || '中等',
+    eatingOutFrequency: preference?.eatingOutFrequency || '偶尔外食',
+    mealCount: preference?.mealCount || 4,
+    tastePreference: preference?.tastePreference || '清淡',
+  })
+}
+
 const loadArticleDetail = async (id) => {
   selectedArticle.value = await getArticleDetail(id)
   activeView.value = 'articleDetail'
@@ -808,6 +865,7 @@ const bootstrap = async () => {
       loadArticles(),
       loadCheckin(),
       loadNutrition(),
+      loadNutritionPreference(),
       loadGuideLibrary(),
     ]
     await Promise.allSettled(tasks)
@@ -848,7 +906,7 @@ const openView = async (key) => {
     if (key === 'guide') await loadGuideLibrary()
     if (key === 'checkin') await loadCheckin()
     if (key === 'insights') await loadCheckin()
-    if (key === 'nutrition') await loadNutrition()
+    if (key === 'nutrition') await Promise.all([loadNutrition(), loadNutritionPreference()])
   } catch (error) {
     ElMessage.error(error.message || '加载失败')
   }
@@ -1114,6 +1172,16 @@ const saveCheckin = async () => {
     await loadCheckin()
   } catch (error) {
     ElMessage.error(error.message)
+  }
+}
+
+const saveNutritionPreference = async () => {
+  try {
+    await updateNutritionPreference(nutritionPreferenceForm)
+    ElMessage.success('饮食偏好已保存')
+    await loadNutrition()
+  } catch (error) {
+    ElMessage.error(error.message || '保存失败')
   }
 }
 
@@ -1485,6 +1553,8 @@ onMounted(() => {
                 <div class="task-tags">
                   <em>{{ task.equipment || profile?.equipment || '推荐器材' }}</em>
                   <em>{{ task.targetArea || '基础训练' }}</em>
+                  <em v-if="task.difficulty">{{ task.difficulty }}</em>
+                  <em v-if="task.intensityLevel">{{ task.intensityLevel }}</em>
                 </div>
                 <div class="task-dose">
                   <strong>{{ task.minSets }}-{{ task.maxSets }} 组</strong>
@@ -1492,7 +1562,9 @@ onMounted(() => {
                   <strong>休息 {{ task.minRestSeconds }}-{{ task.maxRestSeconds }} 秒</strong>
                 </div>
                 <p>{{ task.guideDescription || task.description }}</p>
+                <p v-if="task.planReason" class="task-coach-note">{{ task.planReason }}</p>
                 <p v-if="task.trainingFocus" class="task-coach-note">{{ task.trainingFocus }}</p>
+                <p v-if="task.progressionAdvice" class="task-coach-note">{{ task.progressionAdvice }}</p>
                 <div class="guide-columns">
                   <div>
                     <h4>执行步骤</h4>
@@ -1507,7 +1579,26 @@ onMounted(() => {
                     </ul>
                   </div>
                 </div>
+                <div class="guide-quality-grid" v-if="task.primaryMuscles || task.commonMistakes || task.contraindications || task.suitableFor">
+                  <article v-if="task.primaryMuscles">
+                    <span>主肌群</span>
+                    <p>{{ task.primaryMuscles }}<template v-if="task.secondaryMuscles"> · 辅助：{{ task.secondaryMuscles }}</template></p>
+                  </article>
+                  <article v-if="task.commonMistakes">
+                    <span>常见错误</span>
+                    <p>{{ task.commonMistakes }}</p>
+                  </article>
+                  <article v-if="task.contraindications">
+                    <span>注意禁忌</span>
+                    <p>{{ task.contraindications }}</p>
+                  </article>
+                  <article v-if="task.suitableFor">
+                    <span>适合人群</span>
+                    <p>{{ task.suitableFor }}</p>
+                  </article>
+                </div>
                 <p v-if="task.alternative" class="task-alternative">{{ task.alternative }}</p>
+                <p v-if="task.alternatives" class="task-alternative">动作库替代：{{ task.alternatives }}</p>
               </div>
             </article>
             <el-empty v-if="!actionTasks.length" description="暂无训练动作，请先完善健身需求" />
@@ -1546,6 +1637,11 @@ onMounted(() => {
               </a>
             </div>
             <h3>{{ guideResult.actionName || guideResult.actionPattern }} · {{ guideResult.equipment }}</h3>
+            <div class="detail-tag-grid" v-if="guideResult.difficulty || guideResult.primaryMuscles || guideResult.secondaryMuscles">
+              <span v-if="guideResult.difficulty">难度：{{ guideResult.difficulty }}</span>
+              <span v-if="guideResult.primaryMuscles">主肌群：{{ guideResult.primaryMuscles }}</span>
+              <span v-if="guideResult.secondaryMuscles">辅助：{{ guideResult.secondaryMuscles }}</span>
+            </div>
             <p>{{ guideResult.description || '暂无说明' }}</p>
             <div class="guide-columns">
               <div>
@@ -1560,6 +1656,24 @@ onMounted(() => {
                   <li v-for="tip in splitGuideText(guideResult.tips)" :key="tip">{{ tip }}</li>
                 </ul>
               </div>
+            </div>
+            <div class="guide-quality-grid" v-if="guideResult.commonMistakes || guideResult.contraindications || guideResult.suitableFor || guideResult.alternatives">
+              <article v-if="guideResult.commonMistakes">
+                <span>常见错误</span>
+                <p>{{ guideResult.commonMistakes }}</p>
+              </article>
+              <article v-if="guideResult.contraindications">
+                <span>禁忌提醒</span>
+                <p>{{ guideResult.contraindications }}</p>
+              </article>
+              <article v-if="guideResult.suitableFor">
+                <span>适合人群</span>
+                <p>{{ guideResult.suitableFor }}</p>
+              </article>
+              <article v-if="guideResult.alternatives">
+                <span>替代动作</span>
+                <p>{{ guideResult.alternatives }}</p>
+              </article>
             </div>
           </div>
         </div>
@@ -1588,6 +1702,7 @@ onMounted(() => {
               <div>
                 <span>{{ item.actionPattern }} · {{ item.equipment }}</span>
                 <h3>{{ item.actionName || item.actionPattern }}</h3>
+                <small>{{ item.difficulty || '未标难度' }} · {{ item.primaryMuscles || '未标肌群' }}</small>
                 <p>{{ excerpt(item.description, 88) }}</p>
               </div>
             </article>
@@ -1691,56 +1806,97 @@ onMounted(() => {
         </section>
       </section>
 
-      <section v-if="activeView === 'nutrition'" class="panel">
-        <div class="panel-heading">
-          <div>
-            <p>营养策略</p>
-            <h2>饮食建议</h2>
-          </div>
-          <el-button :icon="Refresh" @click="loadNutrition">刷新建议</el-button>
-        </div>
-        <div class="metric-grid small">
-          <MetricCard label="目标热量" :value="nutrition?.targetCalories || 0" unit="kcal" tone="green" />
-          <MetricCard label="蛋白质" :value="nutrition?.proteinGrams || 0" unit="g" tone="orange" />
-          <MetricCard label="饮水" :value="nutrition?.waterMl || 0" unit="ml" tone="blue" />
-        </div>
-        <div class="macro-grid">
-          <article v-for="item in macroItems" :key="item.label">
+      <section v-if="activeView === 'nutrition'" class="content-stack">
+        <div class="panel">
+          <div class="panel-heading">
             <div>
-              <span>{{ item.label }}</span>
-              <strong>{{ item.value }}{{ item.unit }}</strong>
+              <p>营养策略</p>
+              <h2>饮食建议</h2>
             </div>
-            <i><b :style="{ width: `${item.percent}%` }"></b></i>
-          </article>
-        </div>
-        <p class="muted block-copy">{{ nutrition?.summary }}</p>
-        <div class="nutrition-tip-grid">
-          <p class="training-day-tip">{{ nutrition?.trainingDayTip }}</p>
-          <p class="training-day-tip rest">{{ nutrition?.restDayTip }}</p>
-        </div>
-        <div class="two-column">
-          <div class="reader-box">
-            <h3>一日结构</h3>
-            <ul class="clean-list"><li v-for="item in nutrition?.meals || []" :key="item">{{ item }}</li></ul>
+            <el-button :icon="Refresh" @click="loadNutrition">刷新建议</el-button>
           </div>
-          <div class="reader-box">
-            <h3>执行提示</h3>
-            <ul class="clean-list"><li v-for="item in nutrition?.tips || []" :key="item">{{ item }}</li></ul>
+          <div class="metric-grid small">
+            <MetricCard label="目标热量" :value="nutrition?.targetCalories || 0" unit="kcal" tone="green" />
+            <MetricCard label="蛋白质" :value="nutrition?.proteinGrams || 0" unit="g" tone="orange" />
+            <MetricCard label="饮水" :value="nutrition?.waterMl || 0" unit="ml" tone="blue" />
+          </div>
+          <div class="macro-grid">
+            <article v-for="item in macroItems" :key="item.label">
+              <div>
+                <span>{{ item.label }}</span>
+                <strong>{{ item.value }}{{ item.unit }}</strong>
+              </div>
+              <i><b :style="{ width: `${item.percent}%` }"></b></i>
+            </article>
+          </div>
+          <p class="muted block-copy">{{ nutrition?.summary }}</p>
+          <p class="preference-summary" v-if="nutrition?.preferenceSummary">{{ nutrition.preferenceSummary }}</p>
+          <div class="nutrition-tip-grid">
+            <p class="training-day-tip">{{ nutrition?.trainingDayTip }}</p>
+            <p class="training-day-tip rest">{{ nutrition?.restDayTip }}</p>
+          </div>
+          <div class="two-column">
+            <div class="reader-box">
+              <h3>训练日模板</h3>
+              <ul class="clean-list"><li v-for="item in nutrition?.trainingDayMeals || []" :key="item">{{ item }}</li></ul>
+            </div>
+            <div class="reader-box">
+              <h3>休息日模板</h3>
+              <ul class="clean-list"><li v-for="item in nutrition?.restDayMeals || []" :key="item">{{ item }}</li></ul>
+            </div>
+          </div>
+          <div class="two-column nutrition-detail-grid">
+            <div class="reader-box">
+              <h3>一日结构</h3>
+              <ul class="clean-list"><li v-for="item in nutrition?.meals || []" :key="item">{{ item }}</li></ul>
+            </div>
+            <div class="reader-box">
+              <h3>执行提示</h3>
+              <ul class="clean-list"><li v-for="item in nutrition?.tips || []" :key="item">{{ item }}</li></ul>
+            </div>
+          </div>
+          <div class="two-column nutrition-detail-grid">
+            <div class="reader-box">
+              <h3>训练前后</h3>
+              <ul class="clean-list"><li v-for="item in nutrition?.mealTiming || []" :key="item">{{ item }}</li></ul>
+            </div>
+            <div class="reader-box">
+              <h3>食材选择</h3>
+              <ul class="clean-list"><li v-for="item in nutrition?.foodChoices || []" :key="item">{{ item }}</li></ul>
+            </div>
+          </div>
+          <div class="two-column nutrition-detail-grid">
+            <div class="reader-box">
+              <h3>食材替换</h3>
+              <ul class="clean-list"><li v-for="item in nutrition?.replacements || []" :key="item">{{ item }}</li></ul>
+            </div>
+            <div class="reader-box">
+              <h3>采购清单</h3>
+              <ul class="clean-list"><li v-for="item in nutrition?.shoppingList || []" :key="item">{{ item }}</li></ul>
+            </div>
+          </div>
+          <div class="reader-box nutrition-watchouts" v-if="nutrition?.watchouts?.length">
+            <h3>注意事项</h3>
+            <ul class="clean-list"><li v-for="item in nutrition.watchouts" :key="item">{{ item }}</li></ul>
           </div>
         </div>
-        <div class="two-column nutrition-detail-grid">
-          <div class="reader-box">
-            <h3>训练前后</h3>
-            <ul class="clean-list"><li v-for="item in nutrition?.mealTiming || []" :key="item">{{ item }}</li></ul>
+
+        <div class="panel">
+          <div class="panel-heading">
+            <div>
+              <p>偏好设置</p>
+              <h2>让推荐更贴近你的日常</h2>
+            </div>
+            <el-button type="primary" :icon="Check" @click="saveNutritionPreference">保存偏好</el-button>
           </div>
-          <div class="reader-box">
-            <h3>食材选择</h3>
-            <ul class="clean-list"><li v-for="item in nutrition?.foodChoices || []" :key="item">{{ item }}</li></ul>
+          <div class="form-grid compact">
+            <label><span>饮食类型</span><el-select v-model="nutritionPreferenceForm.dietType"><el-option v-for="item in dietTypes" :key="item" :label="item" :value="item" /></el-select></label>
+            <label><span>预算</span><el-select v-model="nutritionPreferenceForm.budgetLevel"><el-option v-for="item in budgetLevels" :key="item" :label="item" :value="item" /></el-select></label>
+            <label><span>外食频率</span><el-select v-model="nutritionPreferenceForm.eatingOutFrequency"><el-option v-for="item in eatingOutFrequencies" :key="item" :label="item" :value="item" /></el-select></label>
+            <label><span>每日餐次</span><el-input-number v-model="nutritionPreferenceForm.mealCount" :min="3" :max="5" /></label>
+            <label><span>口味</span><el-select v-model="nutritionPreferenceForm.tastePreference"><el-option v-for="item in tastePreferences" :key="item" :label="item" :value="item" /></el-select></label>
+            <label class="wide"><span>忌口/过敏</span><el-input v-model="nutritionPreferenceForm.allergies" placeholder="例如：乳糖不耐、花生过敏、无明显忌口" /></label>
           </div>
-        </div>
-        <div class="reader-box nutrition-watchouts" v-if="nutrition?.watchouts?.length">
-          <h3>注意事项</h3>
-          <ul class="clean-list"><li v-for="item in nutrition.watchouts" :key="item">{{ item }}</li></ul>
         </div>
       </section>
 
@@ -1935,7 +2091,7 @@ onMounted(() => {
                 <div>
                   <span>{{ item.actionPattern }} · {{ item.equipment }}</span>
                   <strong>{{ item.actionName || item.actionPattern }}</strong>
-                  <small>{{ item.imageurl ? '已上传图片' : '未上传图片' }} · {{ excerpt(item.description, 58) }}</small>
+                  <small>{{ item.imageurl ? '已上传图片' : '未上传图片' }} · {{ item.difficulty || '未标难度' }} · {{ item.primaryMuscles || '未标肌群' }} · {{ excerpt(item.description, 48) }}</small>
                 </div>
                 <div class="icon-actions">
                   <el-button :icon="Edit" circle @click="openGuideAdminEdit(item)" />
@@ -1961,9 +2117,16 @@ onMounted(() => {
               <label><span>动作模式</span><el-select v-model="guideAdminForm.actionPattern"><el-option v-for="item in actionPatterns" :key="item" :label="item" :value="item" /></el-select></label>
               <label><span>器材</span><el-select v-model="guideAdminForm.equipment"><el-option v-for="item in equipments" :key="item" :label="item" :value="item" /></el-select></label>
               <label><span>动作名称</span><el-input v-model="guideAdminForm.actionName" placeholder="例如：俯卧撑" /></label>
+              <label><span>难度</span><el-select v-model="guideAdminForm.difficulty"><el-option v-for="item in levels" :key="item" :label="item" :value="item" /></el-select></label>
+              <label><span>主肌群</span><el-input v-model="guideAdminForm.primaryMuscles" placeholder="例如：胸大肌、肱三头肌" /></label>
+              <label><span>辅助肌群</span><el-input v-model="guideAdminForm.secondaryMuscles" placeholder="例如：核心、前锯肌" /></label>
               <label class="wide"><span>动作描述</span><el-input v-model="guideAdminForm.description" type="textarea" :rows="3" /></label>
               <label class="wide"><span>执行步骤</span><el-input v-model="guideAdminForm.steps" type="textarea" :rows="4" placeholder="用 | 分隔步骤" /></label>
               <label class="wide"><span>训练要点</span><el-input v-model="guideAdminForm.tips" type="textarea" :rows="4" placeholder="用 | 分隔要点" /></label>
+              <label class="wide"><span>常见错误</span><el-input v-model="guideAdminForm.commonMistakes" type="textarea" :rows="3" /></label>
+              <label class="wide"><span>禁忌提醒</span><el-input v-model="guideAdminForm.contraindications" type="textarea" :rows="3" /></label>
+              <label class="wide"><span>适合人群</span><el-input v-model="guideAdminForm.suitableFor" type="textarea" :rows="3" /></label>
+              <label class="wide"><span>替代动作</span><el-input v-model="guideAdminForm.alternatives" type="textarea" :rows="3" /></label>
             </div>
             <div class="guide-upload-panel">
               <div class="upload-preview">
@@ -2056,9 +2219,16 @@ onMounted(() => {
         <label><span>动作模式</span><el-select v-model="guideEditForm.actionPattern"><el-option v-for="item in actionPatterns" :key="item" :label="item" :value="item" /></el-select></label>
         <label><span>器材</span><el-select v-model="guideEditForm.equipment"><el-option v-for="item in equipments" :key="item" :label="item" :value="item" /></el-select></label>
         <label><span>动作名称</span><el-input v-model="guideEditForm.actionName" placeholder="例如：俯卧撑" /></label>
+        <label><span>难度</span><el-select v-model="guideEditForm.difficulty"><el-option v-for="item in levels" :key="item" :label="item" :value="item" /></el-select></label>
+        <label><span>主肌群</span><el-input v-model="guideEditForm.primaryMuscles" /></label>
+        <label><span>辅助肌群</span><el-input v-model="guideEditForm.secondaryMuscles" /></label>
         <label class="wide"><span>动作描述</span><el-input v-model="guideEditForm.description" type="textarea" :rows="3" /></label>
         <label class="wide"><span>执行步骤</span><el-input v-model="guideEditForm.steps" type="textarea" :rows="4" placeholder="用 | 分隔步骤" /></label>
         <label class="wide"><span>训练要点</span><el-input v-model="guideEditForm.tips" type="textarea" :rows="4" placeholder="用 | 分隔要点" /></label>
+        <label class="wide"><span>常见错误</span><el-input v-model="guideEditForm.commonMistakes" type="textarea" :rows="3" /></label>
+        <label class="wide"><span>禁忌提醒</span><el-input v-model="guideEditForm.contraindications" type="textarea" :rows="3" /></label>
+        <label class="wide"><span>适合人群</span><el-input v-model="guideEditForm.suitableFor" type="textarea" :rows="3" /></label>
+        <label class="wide"><span>替代动作</span><el-input v-model="guideEditForm.alternatives" type="textarea" :rows="3" /></label>
       </div>
       <div class="guide-upload-panel dialog-upload-panel">
         <div class="upload-preview">
@@ -3412,6 +3582,56 @@ onMounted(() => {
   font-weight: 900;
 }
 
+.detail-tag-grid,
+.guide-quality-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.detail-tag-grid {
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  margin: 10px 0 14px;
+}
+
+.detail-tag-grid span {
+  border: 1px solid #dce2d8;
+  border-radius: 8px;
+  background: #fff;
+  color: #315147;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-weight: 900;
+  overflow-wrap: anywhere;
+}
+
+.guide-quality-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 4px;
+}
+
+.guide-quality-grid article {
+  border: 1px solid #e4eadf;
+  border-radius: 8px;
+  background: #fbfcf8;
+  padding: 10px 12px;
+  min-width: 0;
+}
+
+.guide-quality-grid span {
+  display: block;
+  margin-bottom: 5px;
+  color: #c65f3d;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.guide-quality-grid p {
+  margin: 0;
+  color: #566860;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+
 .task-dose {
   display: flex;
   flex-wrap: wrap;
@@ -3886,6 +4106,16 @@ onMounted(() => {
   line-height: 1.7;
 }
 
+.preference-summary {
+  border: 1px solid #dfe7dc;
+  border-radius: 8px;
+  background: #fbfcf8;
+  color: #385046;
+  padding: 12px 14px;
+  line-height: 1.7;
+  font-weight: 800;
+}
+
 .nutrition-tip-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -4026,7 +4256,8 @@ onMounted(() => {
   .nutrition-tip-grid,
   .macro-grid,
   .reader-page,
-  .guide-columns {
+  .guide-columns,
+  .guide-quality-grid {
     grid-template-columns: 1fr;
   }
 

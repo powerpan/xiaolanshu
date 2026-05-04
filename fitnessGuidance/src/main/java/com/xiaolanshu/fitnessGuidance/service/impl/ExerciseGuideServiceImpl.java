@@ -53,5 +53,26 @@ public class ExerciseGuideServiceImpl implements ExerciseGuideService {
         if (exerciseGuide.getImageSourceUrl() != null && exerciseGuide.getImageSourceUrl().isBlank()) {
             exerciseGuide.setImageSourceUrl(null);
         }
+        if (exerciseGuide.getPrimaryMuscles() != null && exerciseGuide.getPrimaryMuscles().isBlank()) {
+            exerciseGuide.setPrimaryMuscles(null);
+        }
+        if (exerciseGuide.getSecondaryMuscles() != null && exerciseGuide.getSecondaryMuscles().isBlank()) {
+            exerciseGuide.setSecondaryMuscles(null);
+        }
+        if (exerciseGuide.getDifficulty() != null && exerciseGuide.getDifficulty().isBlank()) {
+            exerciseGuide.setDifficulty(null);
+        }
+        if (exerciseGuide.getContraindications() != null && exerciseGuide.getContraindications().isBlank()) {
+            exerciseGuide.setContraindications(null);
+        }
+        if (exerciseGuide.getCommonMistakes() != null && exerciseGuide.getCommonMistakes().isBlank()) {
+            exerciseGuide.setCommonMistakes(null);
+        }
+        if (exerciseGuide.getSuitableFor() != null && exerciseGuide.getSuitableFor().isBlank()) {
+            exerciseGuide.setSuitableFor(null);
+        }
+        if (exerciseGuide.getAlternatives() != null && exerciseGuide.getAlternatives().isBlank()) {
+            exerciseGuide.setAlternatives(null);
+        }
     }
 }

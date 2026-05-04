@@ -97,7 +97,14 @@ CREATE TABLE IF NOT EXISTS exerciseguides (
     tips TEXT,
     imageurl VARCHAR(1000),
     imagecredit VARCHAR(200),
-    imagesourceurl VARCHAR(1000)
+    imagesourceurl VARCHAR(1000),
+    primarymuscles VARCHAR(200),
+    secondarymuscles VARCHAR(200),
+    difficulty VARCHAR(50),
+    contraindications TEXT,
+    commonmistakes TEXT,
+    suitablefor TEXT,
+    alternatives TEXT
 );
 
 ALTER TABLE exerciseguides ADD COLUMN IF NOT EXISTS actionname VARCHAR(100);
@@ -105,6 +112,13 @@ ALTER TABLE exerciseguides ADD COLUMN IF NOT EXISTS steps TEXT;
 ALTER TABLE exerciseguides ADD COLUMN IF NOT EXISTS tips TEXT;
 ALTER TABLE exerciseguides ADD COLUMN IF NOT EXISTS imagecredit VARCHAR(200);
 ALTER TABLE exerciseguides ADD COLUMN IF NOT EXISTS imagesourceurl VARCHAR(1000);
+ALTER TABLE exerciseguides ADD COLUMN IF NOT EXISTS primarymuscles VARCHAR(200);
+ALTER TABLE exerciseguides ADD COLUMN IF NOT EXISTS secondarymuscles VARCHAR(200);
+ALTER TABLE exerciseguides ADD COLUMN IF NOT EXISTS difficulty VARCHAR(50);
+ALTER TABLE exerciseguides ADD COLUMN IF NOT EXISTS contraindications TEXT;
+ALTER TABLE exerciseguides ADD COLUMN IF NOT EXISTS commonmistakes TEXT;
+ALTER TABLE exerciseguides ADD COLUMN IF NOT EXISTS suitablefor TEXT;
+ALTER TABLE exerciseguides ADD COLUMN IF NOT EXISTS alternatives TEXT;
 
 CREATE UNIQUE INDEX IF NOT EXISTS uk_exerciseguides_pattern_equipment
     ON exerciseguides(actionpattern, equipment);
@@ -121,3 +135,14 @@ CREATE TABLE IF NOT EXISTS fitnesscheckins (
 
 CREATE UNIQUE INDEX IF NOT EXISTS uk_fitnesscheckins_username_date
     ON fitnesscheckins(username, checkin_date);
+
+CREATE TABLE IF NOT EXISTS nutritionpreferences (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    diettype VARCHAR(50) DEFAULT '均衡饮食',
+    allergies VARCHAR(300),
+    budgetlevel VARCHAR(50) DEFAULT '中等',
+    eatingoutfrequency VARCHAR(50) DEFAULT '偶尔外食',
+    mealcount INT DEFAULT 4,
+    tastepreference VARCHAR(100) DEFAULT '清淡'
+);

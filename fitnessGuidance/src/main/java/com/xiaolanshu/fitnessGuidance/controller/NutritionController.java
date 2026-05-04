@@ -1,9 +1,11 @@
 package com.xiaolanshu.fitnessGuidance.controller;
 
 import com.xiaolanshu.fitnessGuidance.pojo.NutritionRecommendation;
+import com.xiaolanshu.fitnessGuidance.pojo.NutritionPreference;
 import com.xiaolanshu.fitnessGuidance.pojo.Result;
 import com.xiaolanshu.fitnessGuidance.pojo.User;
 import com.xiaolanshu.fitnessGuidance.pojo.UserProfile;
+import com.xiaolanshu.fitnessGuidance.service.NutritionPreferenceService;
 import com.xiaolanshu.fitnessGuidance.service.UserProfileService;
 import com.xiaolanshu.fitnessGuidance.service.UserService;
 import com.xiaolanshu.fitnessGuidance.utils.Jwtutil;
@@ -23,6 +25,9 @@ public class NutritionController {
     @Autowired
     private UserProfileService userProfileService;
 
+    @Autowired
+    private NutritionPreferenceService nutritionPreferenceService;
+
     @GetMapping("/recommendation")
     public Result<NutritionRecommendation> recommendation(
             @RequestHeader(name = "Authorization", required = false) String authorization,
@@ -34,13 +39,39 @@ public class NutritionController {
 
         User user = userService.findUsername(username);
         UserProfile profile = userProfileService.getuserprofile(username);
-        return Result.success(buildRecommendation(user, profile));
+        NutritionPreference preference = nutritionPreferenceService.getPreference(username);
+        return Result.success(buildRecommendation(user, profile, preference));
     }
 
-    private NutritionRecommendation buildRecommendation(User user, UserProfile profile) {
+    @GetMapping("/preference")
+    public Result<NutritionPreference> preference(
+            @RequestHeader(name = "Authorization", required = false) String authorization,
+            String jwttoken) {
+        String username = parseUsername(resolveToken(authorization, jwttoken));
+        if (username == null) {
+            return Result.error("未登录");
+        }
+        return Result.success(nutritionPreferenceService.getPreference(username));
+    }
+
+    @PutMapping("/preference")
+    public Result savePreference(
+            @RequestHeader(name = "Authorization", required = false) String authorization,
+            String jwttoken,
+            NutritionPreference preference) {
+        String username = parseUsername(resolveToken(authorization, jwttoken));
+        if (username == null) {
+            return Result.error("未登录");
+        }
+        nutritionPreferenceService.savePreference(username, preference);
+        return Result.success();
+    }
+
+    private NutritionRecommendation buildRecommendation(User user, UserProfile profile, NutritionPreference preference) {
         double weight = user != null && user.getWeight() != null ? user.getWeight() : 65D;
         String goal = profile != null && profile.getFitnessGoal() != null ? profile.getFitnessGoal() : "保持健康";
         int weeklyFrequency = profile != null && profile.getWeeklyFrequency() != null ? profile.getWeeklyFrequency() : 3;
+        int mealCount = preference != null && preference.getMealCount() != null ? preference.getMealCount() : 4;
 
         int calories = (int) Math.round(weight * (28 + Math.min(weeklyFrequency, 6) * 1.2));
         double proteinRatio = 1.5;
@@ -70,6 +101,7 @@ public class NutritionController {
         recommendation.setFatGrams(fatGrams);
         recommendation.setWaterMl((int) Math.round(weight * (weeklyFrequency >= 4 ? 38 : 35)));
         recommendation.setSummary(buildSummary(goal, safeCalories, proteinGrams, carbohydrateGrams, fatGrams));
+        recommendation.setPreferenceSummary(buildPreferenceSummary(preference, mealCount));
         recommendation.setTrainingDayTip(buildTrainingDayTip(goal));
         recommendation.setRestDayTip(buildRestDayTip(goal));
 
@@ -78,7 +110,24 @@ public class NutritionController {
         meals.add(goalMeal("午餐", goal, "瘦肉/鱼虾/豆制品 + 米饭/薯类 + 两份蔬菜"));
         meals.add(goalMeal("训练前后", goal, "香蕉/燕麦/酸奶 + 低脂蛋白，避免空腹硬练"));
         meals.add(goalMeal("晚餐", goal, "清淡蛋白 + 大量蔬菜 + 按目标保留适量主食"));
+        if (mealCount >= 5) {
+            meals.add(goalMeal("加餐", goal, "低脂酸奶/水果/坚果小份，避免高糖零食"));
+        }
         recommendation.setMeals(meals);
+
+        ArrayList<String> trainingDayMeals = new ArrayList<>();
+        trainingDayMeals.add("早餐：主食 + 优质蛋白 + 水果，保证上午能量。");
+        trainingDayMeals.add("训练前：按饥饿程度补 30 到 60g 碳水。");
+        trainingDayMeals.add("训练后：优先补 25 到 40g 蛋白质和水分。");
+        trainingDayMeals.add("晚餐：低油蛋白 + 蔬菜 + 适量主食，避免训练后暴食。");
+        recommendation.setTrainingDayMeals(limitMeals(trainingDayMeals, mealCount));
+
+        ArrayList<String> restDayMeals = new ArrayList<>();
+        restDayMeals.add("早餐：蛋白质不减，主食按饥饿程度控制。");
+        restDayMeals.add("午餐：保持肉/蛋/豆制品和两份蔬菜。");
+        restDayMeals.add("下午：需要加餐时优先水果、酸奶或豆浆。");
+        restDayMeals.add("晚餐：主食略低于训练日，控制油脂和夜宵。");
+        recommendation.setRestDayMeals(limitMeals(restDayMeals, mealCount));
 
         ArrayList<String> tips = new ArrayList<>();
         tips.add("每餐先保证蛋白质，再调整主食和脂肪。");
@@ -99,6 +148,20 @@ public class NutritionController {
         foodChoices.add("脂肪：橄榄油、牛油果、坚果、深海鱼，控制总量。");
         foodChoices.add("蔬菜：深色叶菜、菌菇、番茄、十字花科蔬菜。");
         recommendation.setFoodChoices(foodChoices);
+
+        ArrayList<String> replacements = new ArrayList<>();
+        replacements.add("鸡胸肉可替换为鱼虾、瘦牛肉、鸡蛋、豆腐或无糖酸奶。");
+        replacements.add("米饭可替换为燕麦、土豆、红薯、全麦面包或玉米。");
+        replacements.add("牛奶不适应时可替换为无糖豆浆、酸奶或豆制品。");
+        replacements.add(resolvePreferenceReplacement(preference));
+        recommendation.setReplacements(replacements);
+
+        ArrayList<String> shoppingList = new ArrayList<>();
+        shoppingList.add("蛋白：鸡蛋、豆腐、鱼虾、鸡胸或瘦牛肉。");
+        shoppingList.add("主食：米饭、燕麦、红薯、土豆或全麦面包。");
+        shoppingList.add("蔬果：深色叶菜、番茄、菌菇、香蕉或当季水果。");
+        shoppingList.add(resolveBudgetShopping(preference));
+        recommendation.setShoppingList(shoppingList);
 
         ArrayList<String> watchouts = new ArrayList<>();
         if ("减脂".equals(goal) || "塑形".equals(goal)) {
@@ -148,6 +211,49 @@ public class NutritionController {
             return mealName + "：" + base + "，优先低油烹饪并控制酱料。";
         }
         return mealName + "：" + base + "。";
+    }
+
+    private ArrayList<String> limitMeals(ArrayList<String> meals, int mealCount) {
+        int limit = Math.min(Math.max(mealCount, 3), meals.size());
+        return new ArrayList<>(meals.subList(0, limit));
+    }
+
+    private String buildPreferenceSummary(NutritionPreference preference, int mealCount) {
+        if (preference == null) {
+            return "当前按均衡饮食、每日至少 " + mealCount + " 餐生成建议。";
+        }
+        String allergies = preference.getAllergies() == null || preference.getAllergies().isBlank()
+                ? "无明确忌口"
+                : preference.getAllergies();
+        return "偏好「" + preference.getDietType() + "」，预算「" + preference.getBudgetLevel()
+                + "」，外食频率「" + preference.getEatingOutFrequency() + "」，每日 " + mealCount
+                + " 餐，忌口：" + allergies + "，口味：" + preference.getTastePreference() + "。";
+    }
+
+    private String resolvePreferenceReplacement(NutritionPreference preference) {
+        if (preference == null || preference.getDietType() == null) {
+            return "外食时优先选择清蒸、炖煮、少油快炒，少选油炸和浓酱。";
+        }
+        if (preference.getDietType().contains("素")) {
+            return "素食优先用豆腐、豆浆、鹰嘴豆、鸡蛋和奶制品补足蛋白。";
+        }
+        if (preference.getDietType().contains("控糖")) {
+            return "控糖时主食优先选择低加工谷物，饮料改无糖茶或水。";
+        }
+        if (preference.getEatingOutFrequency() != null && preference.getEatingOutFrequency().contains("经常")) {
+            return "经常外食时选择盖饭减半酱汁、加一份蔬菜，饮料换水。";
+        }
+        return "按可获得食材替换同类蛋白、同类主食和同类蔬菜即可。";
+    }
+
+    private String resolveBudgetShopping(NutritionPreference preference) {
+        if (preference != null && "经济".equals(preference.getBudgetLevel())) {
+            return "经济组合：鸡蛋、豆腐、鸡腿去皮、冷冻蔬菜、土豆和燕麦。";
+        }
+        if (preference != null && "充足".equals(preference.getBudgetLevel())) {
+            return "充足组合：鱼虾、牛肉、希腊酸奶、坚果、浆果和多种深色蔬菜。";
+        }
+        return "中等预算组合：鸡蛋、鸡胸、鱼、豆腐、酸奶、米饭和当季蔬菜。";
     }
 
     private String resolveToken(String authorization, String jwttoken) {

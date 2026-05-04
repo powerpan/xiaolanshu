@@ -15,7 +15,9 @@ public interface ExerciseGuideMapper {
 
     @Select("SELECT id, actionpattern AS \"actionPattern\", actionname AS \"actionName\", " +
             "equipment, description, steps, tips, imageurl, imagecredit AS \"imageCredit\", " +
-            "imagesourceurl AS \"imageSourceUrl\" FROM exerciseguides " +
+            "imagesourceurl AS \"imageSourceUrl\", primarymuscles AS \"primaryMuscles\", " +
+            "secondarymuscles AS \"secondaryMuscles\", difficulty, contraindications, " +
+            "commonmistakes AS \"commonMistakes\", suitablefor AS \"suitableFor\", alternatives FROM exerciseguides " +
             "WHERE actionpattern = #{actionPattern} " +
             "AND (equipment = #{equipment} OR equipment = '徒手') " +
             "ORDER BY CASE WHEN equipment = #{equipment} THEN 0 ELSE 1 END " +
@@ -25,7 +27,9 @@ public interface ExerciseGuideMapper {
     @Select("<script>" +
             "SELECT id, actionpattern AS \"actionPattern\", actionname AS \"actionName\", " +
             "equipment, description, steps, tips, imageurl, imagecredit AS \"imageCredit\", " +
-            "imagesourceurl AS \"imageSourceUrl\" FROM exerciseguides " +
+            "imagesourceurl AS \"imageSourceUrl\", primarymuscles AS \"primaryMuscles\", " +
+            "secondarymuscles AS \"secondaryMuscles\", difficulty, contraindications, " +
+            "commonmistakes AS \"commonMistakes\", suitablefor AS \"suitableFor\", alternatives FROM exerciseguides " +
             "WHERE 1 = 1 " +
             "<if test='actionPattern != null'>AND actionpattern = #{actionPattern} </if>" +
             "<if test='equipment != null'>AND equipment = #{equipment} </if>" +
@@ -36,8 +40,10 @@ public interface ExerciseGuideMapper {
                                                 @Param("equipment") String equipment,
                                                 @Param("missingImageOnly") Boolean missingImageOnly);
 
-    @Insert("INSERT INTO exerciseguides(actionpattern, actionname, equipment, description, steps, tips, imageurl, imagecredit, imagesourceurl) " +
-            "VALUES(#{actionPattern}, #{actionName}, #{equipment}, #{description}, #{steps}, #{tips}, #{imageurl}, #{imageCredit}, #{imageSourceUrl})")
+    @Insert("INSERT INTO exerciseguides(actionpattern, actionname, equipment, description, steps, tips, imageurl, imagecredit, imagesourceurl, " +
+            "primarymuscles, secondarymuscles, difficulty, contraindications, commonmistakes, suitablefor, alternatives) " +
+            "VALUES(#{actionPattern}, #{actionName}, #{equipment}, #{description}, #{steps}, #{tips}, #{imageurl}, #{imageCredit}, #{imageSourceUrl}, " +
+            "#{primaryMuscles}, #{secondaryMuscles}, #{difficulty}, #{contraindications}, #{commonMistakes}, #{suitableFor}, #{alternatives})")
     void addExerciseGuide(ExerciseGuide exerciseGuide);
 
     @Update("UPDATE exerciseguides SET " +
@@ -49,7 +55,14 @@ public interface ExerciseGuideMapper {
             "tips = #{tips}, " +
             "imageurl = #{imageurl}, " +
             "imagecredit = #{imageCredit}, " +
-            "imagesourceurl = #{imageSourceUrl} " +
+            "imagesourceurl = #{imageSourceUrl}, " +
+            "primarymuscles = #{primaryMuscles}, " +
+            "secondarymuscles = #{secondaryMuscles}, " +
+            "difficulty = #{difficulty}, " +
+            "contraindications = #{contraindications}, " +
+            "commonmistakes = #{commonMistakes}, " +
+            "suitablefor = #{suitableFor}, " +
+            "alternatives = #{alternatives} " +
             "WHERE id = #{id}")
     void updateExerciseGuide(ExerciseGuide exerciseGuide);
 

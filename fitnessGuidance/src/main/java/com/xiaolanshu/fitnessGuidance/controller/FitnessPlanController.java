@@ -152,6 +152,13 @@ public class FitnessPlanController {
                 task.setImageurl(exerciseGuide.getImageurl());
                 task.setImageCredit(exerciseGuide.getImageCredit());
                 task.setImageSourceUrl(exerciseGuide.getImageSourceUrl());
+                task.setPrimaryMuscles(exerciseGuide.getPrimaryMuscles());
+                task.setSecondaryMuscles(exerciseGuide.getSecondaryMuscles());
+                task.setDifficulty(exerciseGuide.getDifficulty());
+                task.setContraindications(exerciseGuide.getContraindications());
+                task.setCommonMistakes(exerciseGuide.getCommonMistakes());
+                task.setSuitableFor(exerciseGuide.getSuitableFor());
+                task.setAlternatives(exerciseGuide.getAlternatives());
                 if (task.getDescription() == null || task.getDescription().isBlank()) {
                     task.setDescription(exerciseGuide.getDescription());
                 }
@@ -180,6 +187,9 @@ public class FitnessPlanController {
         task.setTargetArea(resolveTargetArea(pattern));
         task.setTrainingFocus(resolveTrainingFocus(goal, level));
         task.setAlternative(resolveAlternative(pattern, equipment));
+        task.setIntensityLevel(resolveIntensityLevel(goal, level));
+        task.setPlanReason(resolvePlanReason(pattern, goal, equipment));
+        task.setProgressionAdvice(resolveProgressionAdvice(level));
     }
 
     private String resolveTargetArea(String actionPattern) {
@@ -231,6 +241,34 @@ public class FitnessPlanController {
             case "手臂伸展" -> "可替换为窄距俯卧撑、椅上臂屈伸、哑铃臂屈伸或绳索下压。";
             case "灵活恢复" -> "可替换为肩绕环、胸椎旋转、髋屈伸动态拉伸或弹力带轻阻力激活。";
             default -> "优先选择同动作模式、同难度且器材可用的替代动作。";
+        };
+    }
+
+    private String resolveIntensityLevel(String fitnessGoal, String exLevel) {
+        if ("提升力量".equals(fitnessGoal) || "增肌".equals(fitnessGoal)) {
+            return "中高强度";
+        }
+        if ("减脂".equals(fitnessGoal)) {
+            return "中等强度，控制组间休息";
+        }
+        if ("新手".equals(exLevel)) {
+            return "基础强度";
+        }
+        return "中等强度";
+    }
+
+    private String resolvePlanReason(String actionPattern, String fitnessGoal, String equipment) {
+        return "根据目标「" + fitnessGoal + "」和可用器材「" + equipment + "」，安排「" + actionPattern
+                + "」来覆盖当天核心动作模式。";
+    }
+
+    private String resolveProgressionAdvice(String exLevel) {
+        return switch (exLevel) {
+            case "新手" -> "先完成最低组数；动作稳定后再增加次数，不建议直接加重量。";
+            case "进阶" -> "若最后一组仍能保留 2 次余力，下次可增加一组或轻微加重。";
+            case "熟练" -> "用节奏、停顿或负重做渐进，每次只调整一个变量。";
+            case "资深" -> "根据恢复状态安排强弱日，避免每次都堆到最高容量。";
+            default -> "保持动作质量优先，再考虑增加容量。";
         };
     }
 }
