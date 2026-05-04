@@ -8,6 +8,12 @@ public interface ExerciseGuideService {
 
     ExerciseGuide getexerciseguide(String actionPattern, String equipment);
 
-    ArrayList<ExerciseGuide> listexerciseguides(String actionPattern, String equipment);
+    ArrayList<ExerciseGuide> listexerciseguides(String actionPattern, String equipment, Boolean missingImageOnly);
+
+    void addExerciseGuide(ExerciseGuide exerciseGuide);
+
+    void updateExerciseGuide(ExerciseGuide exerciseGuide);
+
+    void deleteExerciseGuide(Integer id);
 
 }

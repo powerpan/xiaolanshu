@@ -78,7 +78,7 @@ public class NoticeController {
 
     @PutMapping("/deletenotice")
     public Result deletenotice(@RequestHeader(name = "Authorization", required = false) String authorization,
-                               String jwttoken,String title,String content)
+                               String jwttoken,Integer id)
     {
         //令牌验证
         try {
@@ -94,13 +94,16 @@ public class NoticeController {
         {
             return Result.error("无相关权限");
         }
-        noticeService.deletenotice(title,content);
+        if (id == null) {
+            return Result.error("公告ID不能为空");
+        }
+        noticeService.deleteNoticeById(id);
         return Result.success();
     }
 
     @PutMapping("/editnotice")
     public Result editnotice(@RequestHeader(name = "Authorization", required = false) String authorization,
-                             String jwttoken,String lasttitle,String lastcontent,String title,String content)
+                             String jwttoken,Integer id,String title,String content)
     {
         //令牌验证
         try {
@@ -116,7 +119,10 @@ public class NoticeController {
         {
             return Result.error("无相关权限");
         }
-        noticeService.editnotice(lasttitle,lastcontent,title,content);
+        if (id == null) {
+            return Result.error("公告ID不能为空");
+        }
+        noticeService.editNoticeById(id,title,content);
         return Result.success();
     }
 

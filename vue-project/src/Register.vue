@@ -199,6 +199,7 @@ const switchMode = () => {
     linear-gradient(110deg, rgba(36, 59, 56, 0.96) 0 48%, transparent 48%),
     linear-gradient(135deg, #f6f8f1 0%, #eef5ef 52%, #f9efd9 100%);
   color: #17211c;
+  overflow-x: hidden;
 }
 
 .auth-hero {
@@ -215,6 +216,7 @@ const switchMode = () => {
   display: flex;
   align-items: center;
   gap: 14px;
+  min-width: 0;
 }
 
 .brand-mark,
@@ -366,6 +368,7 @@ const switchMode = () => {
 .preview-head {
   display: flex;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 14px;
   align-items: center;
 }
@@ -421,10 +424,12 @@ const switchMode = () => {
 .preview-stats article {
   display: grid;
   gap: 4px;
+  min-width: 0;
 }
 
 .preview-stats strong {
   font-size: 18px;
+  overflow-wrap: anywhere;
 }
 
 .workflow-line {
@@ -435,16 +440,19 @@ const switchMode = () => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  min-width: 0;
   gap: 5px;
   color: rgba(255, 255, 255, 0.86);
   font-size: 12px;
   font-weight: 900;
+  overflow-wrap: anywhere;
 }
 
 .auth-heading h2 {
   margin: 0;
   font-size: 30px;
   letter-spacing: 0;
+  overflow-wrap: anywhere;
 }
 
 .auth-heading span {
@@ -464,6 +472,12 @@ const switchMode = () => {
   gap: 8px;
   color: #33423b;
   font-weight: 700;
+  min-width: 0;
+}
+
+.auth-form :deep(.el-input) {
+  min-width: 0;
+  width: 100%;
 }
 
 .primary-action {
@@ -541,6 +555,25 @@ const switchMode = () => {
 
   .auth-heading span {
     margin-bottom: 18px;
+  }
+}
+
+@media (max-width: 1120px) and (min-width: 961px) {
+  .auth-page {
+    grid-template-columns: minmax(0, 1fr) minmax(340px, 420px);
+    gap: 24px;
+  }
+
+  .auth-hero {
+    padding: 28px;
+  }
+
+  .hero-copy h1 {
+    font-size: clamp(32px, 4vw, 44px);
+  }
+
+  .feature-grid {
+    display: none;
   }
 }
 
@@ -627,6 +660,26 @@ const switchMode = () => {
 
   .product-preview {
     display: none;
+  }
+}
+
+@media (max-height: 680px) and (min-width: 961px) {
+  .auth-page {
+    align-items: start;
+  }
+
+  .auth-hero {
+    justify-content: start;
+    gap: 12px;
+    padding-top: 18px;
+  }
+
+  .hero-copy span {
+    display: none;
+  }
+
+  .auth-card {
+    padding: 20px;
   }
 }
 </style>

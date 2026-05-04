@@ -17,6 +17,9 @@ public class ActionTask {
     private String guideDescription; //动作指导说明
     private String steps; //执行步骤
     private String tips; //训练要点
+    private String targetArea; //主要训练部位
+    private String trainingFocus; //训练重点
+    private String alternative; //替代动作建议
     private String imageurl; //动作指导图
     private String imageCredit; //图片署名
     private String imageSourceUrl; //图片来源链接

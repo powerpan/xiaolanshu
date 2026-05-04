@@ -23,13 +23,62 @@ import {
   Refresh,
   Search,
   Setting,
-  SwitchButton,
   Timer,
   TrendCharts,
+  Upload,
   User,
   View,
 } from '@element-plus/icons-vue'
-import api, { formBody, getToken, unwrap, withToken } from './services/api'
+import AppSidebar from './components/layout/AppSidebar.vue'
+import PageHeader from './components/layout/PageHeader.vue'
+import HeatmapGrid from './components/common/HeatmapGrid.vue'
+import MetricCard from './components/common/MetricCard.vue'
+import AdminDashboard from './views/AdminDashboard.vue'
+import UserDashboard from './views/UserDashboard.vue'
+import { getToken } from './services/api'
+import {
+  addArticleApi,
+  addNotice,
+  deleteArticleById,
+  deleteNoticeById,
+  deleteNoticeDrafts,
+  getArticleDetail,
+  getArticles,
+  getMyArticles,
+  getNoticeDetail,
+  getNoticeDrafts,
+  getNotices,
+  saveNoticeDraftApi,
+  updateArticle,
+  updateNotice,
+} from './services/contentApi'
+import {
+  addExerciseGuide,
+  deleteExerciseGuide,
+  getExerciseGuide,
+  listExerciseGuides,
+  updateExerciseGuide,
+  uploadExerciseGuideImage,
+} from './services/exerciseGuideApi'
+import { getNutritionRecommendation } from './services/nutritionApi'
+import {
+  getActionTasks,
+  getCheckinStats,
+  getSplitMode,
+  getTodayCheckin,
+  saveTodayCheckin,
+} from './services/trainingApi'
+import {
+  addUser,
+  deleteUserByUsername,
+  getAllUsers,
+  getCurrentUser,
+  getUserProfile,
+  updateCurrentUser,
+  updateRegisterState,
+  updateUser,
+  updateUserProfile,
+} from './services/userApi'
 
 const router = useRouter()
 const route = useRoute()
@@ -49,6 +98,8 @@ const selectedDay = ref(1)
 const guideResult = ref(null)
 const guideLibrary = ref([])
 const guideLibraryLoading = ref(false)
+const guideEditVisible = ref(false)
+const guideImageUploading = ref(false)
 const todayCheckin = ref(null)
 const checkinStats = ref(null)
 const nutrition = ref(null)
@@ -59,7 +110,7 @@ const checkedTasks = ref({})
 const isAdmin = computed(() => user.value?.identity === 'ADMIN')
 const displayName = computed(() => user.value?.nickname || user.value?.username || '用户')
 const greetingName = computed(() => displayName.value.replace(/\s/g, '') || '训练者')
-const goalText = computed(() => profile.value?.fitnessGoal || '保持健康')
+const goalText = computed(() => isAdmin.value ? '管理端' : (profile.value?.fitnessGoal || '保持健康'))
 const weeklyFrequency = computed(() => Number(profile.value?.weeklyFrequency || 0))
 const nextWorkoutTitle = computed(() => splitMode.value || '完成一次基础训练')
 
@@ -102,7 +153,12 @@ const noticeForm = reactive({
   title: '',
   content: '',
 })
-const noticeEditing = ref(null)
+const noticeEditVisible = ref(false)
+const noticeEditForm = reactive({
+  id: '',
+  title: '',
+  content: '',
+})
 
 const articleSearch = reactive({
   title: '',
@@ -131,6 +187,29 @@ const guideForm = reactive({
 const guideFilters = reactive({
   actionPattern: '',
   equipment: '',
+  missingImageOnly: false,
+})
+
+const guideAdminForm = reactive({
+  id: '',
+  actionPattern: '水平推',
+  actionName: '',
+  equipment: '徒手',
+  description: '',
+  steps: '',
+  tips: '',
+  imageurl: '',
+})
+
+const guideEditForm = reactive({
+  id: '',
+  actionPattern: '水平推',
+  actionName: '',
+  equipment: '徒手',
+  description: '',
+  steps: '',
+  tips: '',
+  imageurl: '',
 })
 
 const checkinForm = reactive({
@@ -145,42 +224,50 @@ const levels = ['新手', '进阶', '熟练', '资深']
 const actionPatterns = ['水平推', '垂直推', '水平拉', '垂直拉', '下肢蹲', '髋铰链', '单腿训练', '核心稳定', '手臂弯举', '手臂伸展', '灵活恢复']
 const moods = ['状态不错', '轻松', '有挑战', '需要恢复']
 
-const navGroups = computed(() => [
-  {
-    title: '今日',
-    items: [
-      { key: 'overview', label: '首页', icon: House },
-      { key: 'checkin', label: '训练打卡', icon: Calendar },
-      { key: 'insights', label: '训练复盘', icon: DataAnalysis },
-      { key: 'nutrition', label: '饮食建议', icon: Food },
-    ],
-  },
-  {
-    title: '训练',
-    items: [
-      { key: 'profile', label: '个人资料', icon: User },
-      { key: 'fitness', label: '健身需求', icon: Aim },
-      { key: 'plan', label: '训练计划', icon: TrendCharts },
-      { key: 'guide', label: '动作指导', icon: Guide },
-    ],
-  },
-  {
-    title: '内容',
-    items: [
-      { key: 'notices', label: '公告中心', icon: Bell },
-      { key: 'articles', label: '文章广场', icon: Reading },
-    ],
-  },
-  {
-    title: '管理员',
-    items: isAdmin.value
-      ? [
+const userViewKeys = new Set(['overview', 'profile', 'fitness', 'plan', 'guide', 'checkin', 'insights', 'nutrition', 'notices', 'articles', 'articleDetail', 'noticeDetail'])
+const adminViewKeys = new Set(['contentAdmin', 'guideAdmin', 'admin', 'articleDetail', 'noticeDetail'])
+
+const navGroups = computed(() => {
+  if (isAdmin.value) {
+    return [
+      {
+        title: '管理',
+        items: [
           { key: 'contentAdmin', label: '内容管理', icon: Setting },
+          { key: 'guideAdmin', label: '动作库管理', icon: Guide },
           { key: 'admin', label: '用户管理', icon: Management },
-        ]
-      : [],
-  },
-].filter((group) => group.items.length))
+        ],
+      },
+    ]
+  }
+  return [
+    {
+      title: '今日',
+      items: [
+        { key: 'overview', label: '首页', icon: House },
+        { key: 'checkin', label: '训练打卡', icon: Calendar },
+        { key: 'insights', label: '训练复盘', icon: DataAnalysis },
+        { key: 'nutrition', label: '饮食建议', icon: Food },
+      ],
+    },
+    {
+      title: '训练',
+      items: [
+        { key: 'profile', label: '个人资料', icon: User },
+        { key: 'fitness', label: '健身需求', icon: Aim },
+        { key: 'plan', label: '训练计划', icon: TrendCharts },
+        { key: 'guide', label: '动作指导', icon: Guide },
+      ],
+    },
+    {
+      title: '内容',
+      items: [
+        { key: 'notices', label: '公告中心', icon: Bell },
+        { key: 'articles', label: '文章广场', icon: Reading },
+      ],
+    },
+  ]
+})
 
 const weeklyDays = computed(() => {
   const count = Math.max(weeklyFrequency.value || Number(fitnessForm.weeklyFrequency || 0), 1)
@@ -451,7 +538,7 @@ const setProfileForm = () => {
   Object.assign(profileForm, {
     username: user.value.username || '',
     nickname: user.value.nickname || '',
-    password: user.value.password || '',
+    password: '',
     specialty: user.value.specialty || '',
     height: user.value.height ?? '',
     weight: user.value.weight ?? '',
@@ -470,77 +557,65 @@ const setFitnessForm = () => {
 }
 
 const loadUser = async () => {
-  user.value = await unwrap(api.get('/user/getmessage'))
+  user.value = await getCurrentUser()
   setProfileForm()
 }
 
 const loadProfile = async () => {
-  profile.value = await unwrap(api.get('/userprofile/getuserprofile'))
+  profile.value = await getUserProfile()
   setFitnessForm()
 }
 
 const loadNotices = async () => {
-  notices.value = await unwrap(api.get('/notice/getnotice'))
+  notices.value = await getNotices()
 }
 
 const loadUsers = async () => {
   if (!isAdmin.value) return
-  adminUsers.value = await unwrap(api.get('/user/getallmessage'))
+  adminUsers.value = await getAllUsers()
 }
 
 const loadArticles = async () => {
-  articles.value = await unwrap(api.get('/article/getarticle', {
-    params: withToken({
-      title: articleSearch.title,
-      topic: articleSearch.topic,
-    }),
-  }))
+  articles.value = await getArticles({
+    title: articleSearch.title,
+    topic: articleSearch.topic,
+  })
 }
 
 const loadMyArticles = async () => {
-  myArticles.value = await unwrap(api.get('/article/getmyarticle', {
-    params: withToken(),
-  }))
+  myArticles.value = await getMyArticles()
 }
 
 const loadPlan = async (day = selectedDay.value) => {
   if (!profile.value) return
   selectedDay.value = day
-  const params = withToken({ daytime: day })
   const [mode, tasks] = await Promise.all([
-    unwrap(api.get('/fitnessplan/getsplitmode', { params })),
-    unwrap(api.get('/fitnessplan/getactiontask', { params })),
+    getSplitMode(day),
+    getActionTasks(day),
   ])
   splitMode.value = mode
   actionTasks.value = tasks || []
 }
 
 const loadGuide = async () => {
-  const result = await unwrap(api.get('/exerciseguide/getexerciseguide', {
-    params: withToken({
-      actionPattern: guideForm.actionPattern,
-      equipment: guideForm.equipment,
-    }),
-  }))
+  const result = await getExerciseGuide({
+    actionPattern: guideForm.actionPattern,
+    equipment: guideForm.equipment,
+  })
   guideResult.value = withExerciseMediaState(result)
 }
 
 const loadGuideLibrary = async () => {
   guideLibraryLoading.value = true
   try {
-    guideLibrary.value = await unwrap(api.get('/exerciseguide/list', {
-      params: withToken({
-        actionPattern: guideFilters.actionPattern || undefined,
-        equipment: guideFilters.equipment || undefined,
-      }),
-    }))
+    guideLibrary.value = await listExerciseGuides(guideFilters)
   } finally {
     guideLibraryLoading.value = false
   }
 }
 
 const clearGuideFilters = async () => {
-  Object.assign(guideFilters, { actionPattern: '', equipment: '' })
+  Object.assign(guideFilters, { actionPattern: '', equipment: '', missingImageOnly: false })
   await loadGuideLibrary()
 }
 
@@ -552,7 +627,112 @@ const openGuideFromLibrary = (item) => {
   })
 }
 
+const resetGuideAdminForm = () => {
+  Object.assign(guideAdminForm, {
+    id: '',
+    actionPattern: '水平推',
+    actionName: '',
+    equipment: '徒手',
+    description: '',
+    steps: '',
+    tips: '',
+    imageurl: '',
+  })
+}
+
+const openGuideAdminEdit = (item) => {
+  Object.assign(guideEditForm, {
+    id: item.id,
+    actionPattern: item.actionPattern || '水平推',
+    actionName: item.actionName || '',
+    equipment: item.equipment || '徒手',
+    description: item.description || '',
+    steps: item.steps || '',
+    tips: item.tips || '',
+    imageurl: item.imageurl || '',
+  })
+  guideEditVisible.value = true
+}
+
+const saveGuideAdmin = async () => {
+  try {
+    if (!isAdmin.value) {
+      ElMessage.warning('该操作仅管理员可用')
+      return
+    }
+    const payload = {
+      ...guideAdminForm,
+      imageCredit: guideAdminForm.imageurl ? '管理员上传' : '',
+      imageSourceUrl: '',
+    }
+    await addExerciseGuide(payload)
+    ElMessage.success('动作指导已添加')
+    resetGuideAdminForm()
+    await loadGuideLibrary()
+  } catch (error) {
+    ElMessage.error(error.message)
+  }
+}
+
+const saveGuideEdit = async () => {
+  try {
+    if (!isAdmin.value) {
+      ElMessage.warning('该操作仅管理员可用')
+      return
+    }
+    await updateExerciseGuide({
+      ...guideEditForm,
+      imageCredit: guideEditForm.imageurl ? '管理员上传' : '',
+      imageSourceUrl: '',
+    })
+    ElMessage.success('动作指导已更新')
+    guideEditVisible.value = false
+    await loadGuideLibrary()
+  } catch (error) {
+    ElMessage.error(error.message)
+  }
+}
+
+const deleteGuideAdmin = async (item) => {
+  try {
+    await ElMessageBox.confirm(`确认删除动作「${item.actionName || item.actionPattern}」？`, '删除确认', { type: 'warning' })
+    await deleteExerciseGuide(item.id)
+    ElMessage.success('动作指导已删除')
+    await loadGuideLibrary()
+    if (guideEditForm.id === item.id) guideEditVisible.value = false
+  } catch (error) {
+    if (error !== 'cancel') ElMessage.error(error.message || '操作取消')
+  }
+}
+
+const uploadGuideImageTo = async (targetForm, { file, onSuccess, onError }) => {
+  guideImageUploading.value = true
+  try {
+    const imageUrl = await uploadExerciseGuideImage(file)
+    targetForm.imageurl = imageUrl
+    ElMessage.success('图片已上传，保存动作后生效')
+    onSuccess?.({ url: imageUrl })
+  } catch (error) {
+    ElMessage.error(error.message || '图片上传失败')
+    onError?.(error)
+  } finally {
+    guideImageUploading.value = false
+  }
+}
+
+const uploadGuideImage = (options) => uploadGuideImageTo(guideAdminForm, options)
+const uploadGuideEditImage = (options) => uploadGuideImageTo(guideEditForm, options)
+
+const clearGuideAdminImage = () => {
+  guideAdminForm.imageurl = ''
+}
+
+const clearGuideEditImage = () => {
+  guideEditForm.imageurl = ''
+}
+
 const openSuggestedGuide = (item) => {
+  if (isAdmin.value) return
   openGuideFromLibrary(item)
   activeView.value = 'guide'
   if (route.name !== 'mainpage') {
@@ -562,8 +742,8 @@ const openSuggestedGuide = (item) => {
 
 const loadCheckin = async () => {
   const [today, stats] = await Promise.all([
-    unwrap(api.get('/checkin/today')),
-    unwrap(api.get('/checkin/stats')),
+    getTodayCheckin(),
+    getCheckinStats(),
   ])
   todayCheckin.value = today
   checkinStats.value = stats
@@ -577,20 +757,16 @@ const loadCheckin = async () => {
 }
 
 const loadNutrition = async () => {
-  nutrition.value = await unwrap(api.get('/nutrition/recommendation'))
+  nutrition.value = await getNutritionRecommendation()
 }
 
 const loadArticleDetail = async (id) => {
-  selectedArticle.value = await unwrap(api.get('/article/getarticledetail', {
-    params: withToken({ id }),
-  }))
+  selectedArticle.value = await getArticleDetail(id)
   activeView.value = 'articleDetail'
 }
 
 const loadNoticeDetail = async (id) => {
-  selectedNotice.value = await unwrap(api.get('/notice/getnoticedetail', {
-    params: withToken({ id }),
-  }))
+  selectedNotice.value = await getNoticeDetail(id)
   activeView.value = 'noticeDetail'
 }
 
@@ -604,7 +780,7 @@ const syncRouteDetail = async () => {
     }
   } catch (error) {
     ElMessage.error(error.message || '内容加载失败')
-    activeView.value = 'articles'
+    activeView.value = isAdmin.value ? 'contentAdmin' : 'articles'
     router.replace('/mainpage')
   }
 }
@@ -614,6 +790,18 @@ const bootstrap = async () => {
   loading.value = true
   try {
     await loadUser()
+    if (isAdmin.value) {
+      activeView.value = 'contentAdmin'
+      await Promise.allSettled([
+        loadNotices(),
+        loadArticles(),
+        loadMyArticles(),
+        loadUsers(),
+        loadGuideLibrary(),
+      ])
+      await syncRouteDetail()
+      return
+    }
     await loadProfile()
     const tasks = [
       loadNotices(),
@@ -622,9 +810,6 @@ const bootstrap = async () => {
       loadNutrition(),
       loadGuideLibrary(),
     ]
-    if (isAdmin.value) {
-      tasks.push(loadMyArticles(), loadUsers())
-    }
     await Promise.allSettled(tasks)
     await loadPlan(1)
     await syncRouteDetail()
@@ -639,8 +824,12 @@ const bootstrap = async () => {
 }
 
 const openView = async (key) => {
-  if ((key === 'admin' || key === 'contentAdmin') && !isAdmin.value) {
+  if (!isAdmin.value && !userViewKeys.has(key)) {
     ElMessage.warning('该区域仅管理员可见')
+    return
+  }
+  if (isAdmin.value && !adminViewKeys.has(key)) {
+    ElMessage.warning('管理员端仅显示管理功能')
     return
   }
   selectedArticle.value = null
@@ -652,6 +841,7 @@ const openView = async (key) => {
   try {
     if (key === 'admin') await loadUsers()
     if (key === 'contentAdmin') await Promise.all([loadArticles(), loadNotices(), loadMyArticles()])
+    if (key === 'guideAdmin') await loadGuideLibrary()
     if (key === 'notices') await loadNotices()
     if (key === 'articles') await loadArticles()
     if (key === 'plan') await loadPlan(selectedDay.value || 1)
@@ -666,16 +856,16 @@ const openView = async (key) => {
 
 const saveProfile = async () => {
   try {
-    await unwrap(api.put('/user/editmessage', formBody({
-        username: profileForm.username,
-        nickname: profileForm.nickname,
-        password: profileForm.password,
-        userpic: user.value?.userpic || '',
-        identity: user.value?.identity || 'user',
-        specialty: profileForm.specialty,
-        height: profileForm.height,
-        weight: profileForm.weight,
-      })))
+    await updateCurrentUser({
+      username: profileForm.username,
+      nickname: profileForm.nickname,
+      password: profileForm.password,
+      userpic: user.value?.userpic || '',
+      identity: user.value?.identity || 'user',
+      specialty: profileForm.specialty,
+      height: profileForm.height,
+      weight: profileForm.weight,
+    })
     ElMessage.success('个人资料已更新')
     await loadUser()
     await loadNutrition()
@@ -686,15 +876,13 @@ const saveProfile = async () => {
 
 const saveFitnessProfile = async () => {
   try {
-    await unwrap(api.put('/userprofile/edituserprofile', null, {
-      params: withToken({
-        username: fitnessForm.username,
-        fitnessGoal: fitnessForm.fitnessGoal,
-        weeklyFrequency: fitnessForm.weeklyFrequency,
-        equipment: fitnessForm.equipment,
-        exLevel: fitnessForm.exLevel,
-      }),
-    }))
+    await updateUserProfile({
+      username: fitnessForm.username,
+      fitnessGoal: fitnessForm.fitnessGoal,
+      weeklyFrequency: fitnessForm.weeklyFrequency,
+      equipment: fitnessForm.equipment,
+      exLevel: fitnessForm.exLevel,
+    })
     ElMessage.success('健身需求已更新')
     await loadProfile()
     await Promise.allSettled([loadPlan(1), loadNutrition()])
@@ -705,7 +893,7 @@ const saveFitnessProfile = async () => {
 
 const addAdminUser = async () => {
   try {
-    await unwrap(api.post('/user/adduser', formBody(adminAddForm)))
+    await addUser(adminAddForm)
     ElMessage.success('用户已添加')
     Object.assign(adminAddForm, { username: '', password: '', identity: 'user' })
     await loadUsers()
@@ -718,7 +906,7 @@ const openAdminEdit = (row) => {
   Object.assign(adminEditForm, {
     username: row.username,
     nickname: row.nickname || '',
-    password: row.password || '',
+    password: '',
     identity: row.identity || 'user',
     specialty: row.specialty || '',
     userpic: row.userpic || '',
@@ -730,7 +918,7 @@ const openAdminEdit = (row) => {
 
 const saveAdminEdit = async () => {
   try {
-    await unwrap(api.put('/user/editallmessage', formBody(adminEditForm)))
+    await updateUser(adminEditForm)
     ElMessage.success('用户信息已更新')
     adminEditVisible.value = false
     await loadUsers()
@@ -741,12 +929,10 @@ const saveAdminEdit = async () => {
 
 const toggleRegister = async (row) => {
   try {
-    await unwrap(api.put('/user/editregister', null, {
-      params: withToken({
-        username: row.username,
-        registered: !row.registered,
-      }),
-    }))
+    await updateRegisterState({
+      username: row.username,
+      registered: !row.registered,
+    })
     ElMessage.success('审核状态已更新')
     await loadUsers()
   } catch (error) {
@@ -757,9 +943,7 @@ const toggleRegister = async (row) => {
 const deleteUser = async (row) => {
   try {
     await ElMessageBox.confirm(`确认删除用户 ${row.username}？`, '删除确认', { type: 'warning' })
-    await unwrap(api.put('/user/deleteuser', null, {
-      params: withToken({ username: row.username }),
-    }))
+    await deleteUserByUsername(row.username)
     ElMessage.success('用户已删除')
     await loadUsers()
   } catch (error) {
@@ -768,15 +952,12 @@ const deleteUser = async (row) => {
 }
 
 const resetNoticeForm = () => {
-  noticeEditing.value = null
   Object.assign(noticeForm, { title: '', content: '' })
 }
 
 const editNotice = (row) => {
-  noticeEditing.value = { title: row.title, content: row.content }
-  Object.assign(noticeForm, { title: row.title, content: row.content })
-  contentAdminTab.value = 'notices'
-  activeView.value = 'contentAdmin'
+  Object.assign(noticeEditForm, { id: row.id, title: row.title, content: row.content })
+  noticeEditVisible.value = true
 }
 
 const saveNotice = async () => {
@@ -785,23 +966,28 @@ const saveNotice = async () => {
       ElMessage.warning('该操作仅管理员可用')
       return
     }
-    if (noticeEditing.value) {
-      await unwrap(api.put('/notice/editnotice', null, {
-        params: withToken({
-          lasttitle: noticeEditing.value.title,
-          lastcontent: noticeEditing.value.content,
-          title: noticeForm.title,
-          content: noticeForm.content,
-        }),
-      }))
-      ElMessage.success('公告已更新')
-    } else {
-      await unwrap(api.put('/notice/addnotice', null, {
-        params: withToken(noticeForm),
-      }))
-      ElMessage.success('公告已发布')
-    }
+    await addNotice(noticeForm)
+    ElMessage.success('公告已发布')
     resetNoticeForm()
+    await loadNotices()
+  } catch (error) {
+    ElMessage.error(error.message)
+  }
+}
+
+const saveNoticeEdit = async () => {
+  try {
+    if (!isAdmin.value) {
+      ElMessage.warning('该操作仅管理员可用')
+      return
+    }
+    await updateNotice({
+      id: noticeEditForm.id,
+      title: noticeEditForm.title,
+      content: noticeEditForm.content,
+    })
+    ElMessage.success('公告已更新')
+    noticeEditVisible.value = false
     await loadNotices()
   } catch (error) {
     ElMessage.error(error.message)
@@ -811,9 +997,7 @@ const saveNotice = async () => {
 const deleteNotice = async (row) => {
   try {
     await ElMessageBox.confirm('确认删除这条公告？', '删除确认', { type: 'warning' })
-    await unwrap(api.put('/notice/deletenotice', null, {
-      params: withToken({ title: row.title, content: row.content }),
-    }))
+    await deleteNoticeById(row.id)
     ElMessage.success('公告已删除')
     await loadNotices()
   } catch (error) {
@@ -823,9 +1007,7 @@ const deleteNotice = async (row) => {
 
 const saveNoticeDraft = async () => {
   try {
-    await unwrap(api.put('/notice/savetempnotice', null, {
-      params: withToken(noticeForm),
-    }))
+    await saveNoticeDraftApi(noticeForm)
     ElMessage.success('草稿已保存')
   } catch (error) {
     ElMessage.error(error.message)
@@ -834,7 +1016,7 @@ const saveNoticeDraft = async () => {
 
 const loadNoticeDraft = async () => {
   try {
-    const drafts = await unwrap(api.get('/notice/gettempnotice'))
+    const drafts = await getNoticeDrafts()
     if (drafts?.length) {
       Object.assign(noticeForm, {
         title: drafts[0].title,
@@ -851,9 +1033,7 @@ const loadNoticeDraft = async () => {
 
 const clearNoticeDraft = async () => {
   try {
-    await unwrap(api.put('/notice/deletetempnotice', null, {
-      params: withToken(),
-    }))
+    await deleteNoticeDrafts()
     ElMessage.success('草稿已清空')
   } catch (error) {
     ElMessage.error(error.message)
@@ -866,9 +1046,7 @@ const addArticle = async () => {
       ElMessage.warning('该操作仅管理员可用')
       return
     }
-    await unwrap(api.put('/article/addarticle', null, {
-      params: withToken(articleForm),
-    }))
+    await addArticleApi(articleForm)
     ElMessage.success('文章已发布')
     Object.assign(articleForm, { title: '', topic: '', content: '' })
     await Promise.all([loadArticles(), loadMyArticles()])
@@ -887,6 +1065,11 @@ const openNoticeDetail = (row) => {
 
 const closeDetail = (target) => {
   router.push('/mainpage')
+  if (isAdmin.value && (target === 'articles' || target === 'notices')) {
+    contentAdminTab.value = target
+    activeView.value = 'contentAdmin'
+    return
+  }
   activeView.value = target
 }
 
@@ -904,9 +1087,7 @@ const openArticleEdit = (row) => {
 
 const saveArticleEdit = async () => {
   try {
-    await unwrap(api.put('/article/editarticle', null, {
-      params: withToken(articleEditForm),
-    }))
+    await updateArticle(articleEditForm)
     ElMessage.success('文章已更新')
     articleEditVisible.value = false
     await Promise.all([loadArticles(), loadMyArticles()])
@@ -918,9 +1099,7 @@ const saveArticleEdit = async () => {
 const deleteArticle = async (row) => {
   try {
     await ElMessageBox.confirm('确认删除这篇文章？', '删除确认', { type: 'warning' })
-    await unwrap(api.put('/article/deletearticle', null, {
-      params: withToken({ id: row.id, title: row.title, content: row.content }),
-    }))
+    await deleteArticleById({ id: row.id, title: row.title, content: row.content })
     ElMessage.success('文章已删除')
     await Promise.all([loadArticles(), loadMyArticles()])
   } catch (error) {
@@ -930,9 +1109,7 @@ const deleteArticle = async (row) => {
 
 const saveCheckin = async () => {
   try {
-    await unwrap(api.put('/checkin/today', null, {
-      params: checkinForm,
-    }))
+    await saveTodayCheckin(checkinForm)
     ElMessage.success('今日打卡已保存')
     await loadCheckin()
   } catch (error) {
@@ -972,49 +1149,20 @@ onMounted(() => {
 
 <template>
   <div class="workspace-shell" v-loading="loading">
-    <aside class="sidebar">
-      <div class="brand">
-        <span class="brand-logo">XL</span>
-        <div>
-          <strong>小蓝书</strong>
-          <small>训练、饮食与内容</small>
-        </div>
-      </div>
-
-      <nav class="nav-list">
-        <section v-for="group in navGroups" :key="group.title">
-          <p>{{ group.title }}</p>
-          <button
-            v-for="item in group.items"
-            :key="item.key"
-            :class="{ active: activeView === item.key }"
-            @click="openView(item.key)"
-          >
-            <el-icon><component :is="item.icon" /></el-icon>
-            <span>{{ item.label }}</span>
-          </button>
-        </section>
-      </nav>
-
-      <div class="sidebar-user">
-        <span>{{ isAdmin ? 'ADMIN' : 'USER' }}</span>
-        <strong>{{ displayName }}</strong>
-        <small>{{ goalText }} · 每周 {{ weeklyFrequency || 0 }} 次</small>
-      </div>
-    </aside>
+    <AppSidebar
+      :nav-groups="navGroups"
+      :active-view="activeView"
+      :is-admin="isAdmin"
+      :display-name="displayName"
+      :goal-text="goalText"
+      :weekly-frequency="weeklyFrequency"
+      @open-view="openView"
+    />
 
     <main class="main">
-      <header class="topbar">
-        <div>
-          <p>欢迎回来</p>
-          <h1>{{ greetingName }}，今天也稳一点进步</h1>
-        </div>
-        <div class="topbar-actions">
-          <span class="role-badge">{{ isAdmin ? '管理员模式' : '普通用户' }}</span>
-          <el-button :icon="SwitchButton" @click="logout">退出</el-button>
-        </div>
-      </header>
+      <PageHeader :is-admin="isAdmin" :greeting-name="greetingName" @logout="logout" />
 
+      <UserDashboard v-if="!isAdmin || activeView === 'noticeDetail' || activeView === 'articleDetail'">
       <section v-if="activeView === 'overview'" class="content-stack overview-stack">
         <div class="hero-stage">
           <div class="hero-copy">
@@ -1067,11 +1215,14 @@ onMounted(() => {
         </div>
 
         <div class="metric-grid">
-          <article v-for="card in overviewCards" :key="card.label" class="metric-card" :class="card.tone">
-            <span>{{ card.label }}</span>
-            <strong>{{ card.value }}</strong>
-            <small>{{ card.unit }}</small>
-          </article>
+          <MetricCard
+            v-for="card in overviewCards"
+            :key="card.label"
+            :label="card.label"
+            :value="card.value"
+            :unit="card.unit"
+            :tone="card.tone"
+          />
         </div>
 
         <div class="product-command-grid">
@@ -1103,14 +1254,7 @@ onMounted(() => {
               </div>
               <span class="coverage-badge">最佳连续 {{ checkinStats?.bestStreak || 0 }} 天</span>
             </div>
-            <div class="heatmap-grid">
-              <span
-                v-for="day in heatmapDays"
-                :key="day.key"
-                :class="`level-${day.level}`"
-                :title="`${day.label} · ${day.minutes || 0} 分钟 ${day.mood || ''}`"
-              ></span>
-            </div>
+            <HeatmapGrid :days="heatmapDays" compact />
           </section>
         </div>
 
@@ -1338,12 +1482,17 @@ onMounted(() => {
               <div class="task-body">
                 <span>{{ task.actionPattern }}</span>
                 <h3>{{ task.actionName || task.actionPattern }}</h3>
+                <div class="task-tags">
+                  <em>{{ task.equipment || profile?.equipment || '推荐器材' }}</em>
+                  <em>{{ task.targetArea || '基础训练' }}</em>
+                </div>
                 <div class="task-dose">
                   <strong>{{ task.minSets }}-{{ task.maxSets }} 组</strong>
                   <strong>{{ task.minReps }}-{{ task.maxReps }} 次/秒</strong>
                   <strong>休息 {{ task.minRestSeconds }}-{{ task.maxRestSeconds }} 秒</strong>
                 </div>
                 <p>{{ task.guideDescription || task.description }}</p>
+                <p v-if="task.trainingFocus" class="task-coach-note">{{ task.trainingFocus }}</p>
                 <div class="guide-columns">
                   <div>
                     <h4>执行步骤</h4>
@@ -1358,6 +1507,7 @@ onMounted(() => {
                     </ul>
                   </div>
                 </div>
+                <p v-if="task.alternative" class="task-alternative">{{ task.alternative }}</p>
               </div>
             </article>
             <el-empty v-if="!actionTasks.length" description="暂无训练动作，请先完善健身需求" />
@@ -1425,6 +1575,7 @@ onMounted(() => {
           <div class="form-grid compact guide-filter-row">
             <label><span>动作模式</span><el-select v-model="guideFilters.actionPattern" clearable><el-option v-for="item in actionPatterns" :key="item" :label="item" :value="item" /></el-select></label>
             <label><span>器材</span><el-select v-model="guideFilters.equipment" clearable><el-option v-for="item in equipments" :key="item" :label="item" :value="item" /></el-select></label>
+            <label class="checkbox-field"><span>图片状态</span><el-checkbox v-model="guideFilters.missingImageOnly">只看未自定义图片</el-checkbox></label>
             <div class="field-action">
               <el-button type="primary" :icon="Search" :loading="guideLibraryLoading" @click="loadGuideLibrary">筛选</el-button>
               <el-button @click="clearGuideFilters">重置</el-button>
@@ -1461,9 +1612,9 @@ onMounted(() => {
           </div>
         </div>
         <div class="metric-grid small">
-          <article class="metric-card green"><span>累计天数</span><strong>{{ checkinStats?.totalDays || 0 }}</strong><small>天</small></article>
-          <article class="metric-card orange"><span>连续打卡</span><strong>{{ checkinStats?.currentStreak || 0 }}</strong><small>天</small></article>
-          <article class="metric-card blue"><span>累计时长</span><strong>{{ checkinStats?.totalMinutes || 0 }}</strong><small>分钟</small></article>
+          <MetricCard label="累计天数" :value="checkinStats?.totalDays || 0" unit="天" tone="green" />
+          <MetricCard label="连续打卡" :value="checkinStats?.currentStreak || 0" unit="天" tone="orange" />
+          <MetricCard label="累计时长" :value="checkinStats?.totalMinutes || 0" unit="分钟" tone="blue" />
         </div>
         <div class="panel">
           <div class="panel-heading">
@@ -1491,9 +1642,9 @@ onMounted(() => {
           <span>基于最近打卡、计划频率、营养建议和当前目标生成复盘视图。</span>
         </div>
         <div class="metric-grid small">
-          <article class="metric-card green"><span>准备度</span><strong>{{ readinessScore }}</strong><small>/100</small></article>
-          <article class="metric-card orange"><span>最佳连续</span><strong>{{ checkinStats?.bestStreak || 0 }}</strong><small>天</small></article>
-          <article class="metric-card blue"><span>平均时长</span><strong>{{ checkinStats?.averageMinutes || 0 }}</strong><small>分钟</small></article>
+          <MetricCard label="准备度" :value="readinessScore" unit="/100" tone="green" />
+          <MetricCard label="最佳连续" :value="checkinStats?.bestStreak || 0" unit="天" tone="orange" />
+          <MetricCard label="平均时长" :value="checkinStats?.averageMinutes || 0" unit="分钟" tone="blue" />
         </div>
         <div class="dashboard-grid">
           <section class="panel heatmap-panel expanded">
@@ -1503,16 +1654,7 @@ onMounted(() => {
                 <h2>最近 35 天训练热力</h2>
               </div>
             </div>
-            <div class="heatmap-grid large">
-              <span
-                v-for="day in heatmapDays"
-                :key="day.key"
-                :class="`level-${day.level}`"
-                :title="`${day.key} · ${day.minutes || 0} 分钟 ${day.mood || ''}`"
-              >
-                <small>{{ day.label }}</small>
-              </span>
-            </div>
+            <HeatmapGrid :days="heatmapDays" large />
           </section>
           <section class="panel">
             <div class="panel-heading">
@@ -1558,9 +1700,9 @@ onMounted(() => {
           <el-button :icon="Refresh" @click="loadNutrition">刷新建议</el-button>
         </div>
         <div class="metric-grid small">
-          <article class="metric-card green"><span>目标热量</span><strong>{{ nutrition?.targetCalories || 0 }}</strong><small>kcal</small></article>
-          <article class="metric-card orange"><span>蛋白质</span><strong>{{ nutrition?.proteinGrams || 0 }}</strong><small>g</small></article>
-          <article class="metric-card blue"><span>饮水</span><strong>{{ nutrition?.waterMl || 0 }}</strong><small>ml</small></article>
+          <MetricCard label="目标热量" :value="nutrition?.targetCalories || 0" unit="kcal" tone="green" />
+          <MetricCard label="蛋白质" :value="nutrition?.proteinGrams || 0" unit="g" tone="orange" />
+          <MetricCard label="饮水" :value="nutrition?.waterMl || 0" unit="ml" tone="blue" />
         </div>
         <div class="macro-grid">
           <article v-for="item in macroItems" :key="item.label">
@@ -1572,7 +1714,10 @@ onMounted(() => {
           </article>
         </div>
         <p class="muted block-copy">{{ nutrition?.summary }}</p>
-        <p class="training-day-tip">{{ nutrition?.trainingDayTip }}</p>
+        <div class="nutrition-tip-grid">
+          <p class="training-day-tip">{{ nutrition?.trainingDayTip }}</p>
+          <p class="training-day-tip rest">{{ nutrition?.restDayTip }}</p>
+        </div>
         <div class="two-column">
           <div class="reader-box">
             <h3>一日结构</h3>
@@ -1582,6 +1727,20 @@ onMounted(() => {
             <h3>执行提示</h3>
             <ul class="clean-list"><li v-for="item in nutrition?.tips || []" :key="item">{{ item }}</li></ul>
           </div>
+        </div>
+        <div class="two-column nutrition-detail-grid">
+          <div class="reader-box">
+            <h3>训练前后</h3>
+            <ul class="clean-list"><li v-for="item in nutrition?.mealTiming || []" :key="item">{{ item }}</li></ul>
+          </div>
+          <div class="reader-box">
+            <h3>食材选择</h3>
+            <ul class="clean-list"><li v-for="item in nutrition?.foodChoices || []" :key="item">{{ item }}</li></ul>
+          </div>
+        </div>
+        <div class="reader-box nutrition-watchouts" v-if="nutrition?.watchouts?.length">
+          <h3>注意事项</h3>
+          <ul class="clean-list"><li v-for="item in nutrition.watchouts" :key="item">{{ item }}</li></ul>
         </div>
       </section>
 
@@ -1663,6 +1822,9 @@ onMounted(() => {
         </aside>
       </section>
 
+      </UserDashboard>
+
+      <AdminDashboard v-if="isAdmin">
       <section v-if="activeView === 'contentAdmin'" class="content-stack">
         <div class="page-intro admin-intro">
           <p>内容管理</p>
@@ -1671,15 +1833,7 @@ onMounted(() => {
         </div>
         <el-tabs v-model="contentAdminTab" class="admin-tabs">
           <el-tab-pane label="文章" name="articles">
-            <div class="admin-grid">
-              <section class="panel">
-                <div class="panel-heading"><div><p>发布文章</p><h2>内容创作</h2></div><el-button type="primary" :icon="Plus" @click="addArticle">发布</el-button></div>
-                <div class="form-grid">
-                  <label><span>标题</span><el-input v-model="articleForm.title" /></label>
-                  <label><span>主题</span><el-input v-model="articleForm.topic" /></label>
-                  <label class="wide"><span>内容</span><el-input v-model="articleForm.content" type="textarea" :rows="8" /></label>
-                </div>
-              </section>
+            <div class="admin-stack">
               <section class="panel">
                 <div class="panel-heading"><div><p>文章库</p><h2>编辑发布内容</h2></div><el-button :icon="Refresh" @click="loadArticles">刷新</el-button></div>
                 <div class="admin-list">
@@ -1697,31 +1851,18 @@ onMounted(() => {
                   </article>
                 </div>
               </section>
+              <section class="panel">
+                <div class="panel-heading"><div><p>新增文章</p><h2>内容创作</h2></div><el-button type="primary" :icon="Plus" @click="addArticle">发布</el-button></div>
+                <div class="form-grid">
+                  <label><span>标题</span><el-input v-model="articleForm.title" /></label>
+                  <label><span>主题</span><el-input v-model="articleForm.topic" /></label>
+                  <label class="wide"><span>内容</span><el-input v-model="articleForm.content" type="textarea" :rows="8" /></label>
+                </div>
+              </section>
             </div>
           </el-tab-pane>
           <el-tab-pane label="公告" name="notices">
-            <div class="admin-grid">
-              <section class="panel">
-                <div class="panel-heading">
-                  <div>
-                    <p>{{ noticeEditing ? '编辑公告' : '发布公告' }}</p>
-                    <h2>公告管理</h2>
-                  </div>
-                  <div class="button-row">
-                    <el-button :icon="Notebook" @click="loadNoticeDraft">载入</el-button>
-                    <el-button :icon="Document" @click="saveNoticeDraft">存草稿</el-button>
-                    <el-button type="primary" :icon="Plus" @click="saveNotice">{{ noticeEditing ? '保存' : '发布' }}</el-button>
-                  </div>
-                </div>
-                <div class="form-grid">
-                  <label><span>标题</span><el-input v-model="noticeForm.title" /></label>
-                  <label class="wide"><span>内容</span><el-input v-model="noticeForm.content" type="textarea" :rows="7" /></label>
-                </div>
-                <div class="draft-actions">
-                  <el-button text @click="resetNoticeForm">重置表单</el-button>
-                  <el-button text type="danger" @click="clearNoticeDraft">清空草稿</el-button>
-                </div>
-              </section>
+            <div class="admin-stack">
               <section class="panel">
                 <div class="panel-heading"><div><p>公告列表</p><h2>公共消息</h2></div><el-button :icon="Refresh" @click="loadNotices">刷新</el-button></div>
                 <div class="admin-list">
@@ -1739,9 +1880,110 @@ onMounted(() => {
                   </article>
                 </div>
               </section>
+              <section class="panel">
+                <div class="panel-heading">
+                  <div>
+                    <p>新增公告</p>
+                    <h2>公告管理</h2>
+                  </div>
+                  <div class="button-row">
+                    <el-button :icon="Notebook" @click="loadNoticeDraft">载入</el-button>
+                    <el-button :icon="Document" @click="saveNoticeDraft">存草稿</el-button>
+                    <el-button type="primary" :icon="Plus" @click="saveNotice">发布</el-button>
+                  </div>
+                </div>
+                <div class="form-grid">
+                  <label><span>标题</span><el-input v-model="noticeForm.title" /></label>
+                  <label class="wide"><span>内容</span><el-input v-model="noticeForm.content" type="textarea" :rows="7" /></label>
+                </div>
+                <div class="draft-actions">
+                  <el-button text @click="resetNoticeForm">重置表单</el-button>
+                  <el-button text type="danger" @click="clearNoticeDraft">清空草稿</el-button>
+                </div>
+              </section>
             </div>
           </el-tab-pane>
         </el-tabs>
+      </section>
+
+      <section v-if="activeView === 'guideAdmin'" class="content-stack">
+        <div class="page-intro admin-intro">
+          <p>动作库管理</p>
+          <h2>维护动作内容和指导图片</h2>
+          <span>训练计划会读取这里的动作名称、步骤、要点和图片。图片由管理员手动上传。</span>
+        </div>
+        <div class="admin-stack guide-admin-grid">
+          <section class="panel">
+            <div class="panel-heading">
+              <div>
+                <p>动作指导库</p>
+                <h2>{{ guideCoverage.total }} 条记录</h2>
+              </div>
+              <el-button :icon="Refresh" :loading="guideLibraryLoading" @click="loadGuideLibrary">刷新</el-button>
+            </div>
+            <div class="form-grid compact guide-filter-row">
+              <label><span>动作模式</span><el-select v-model="guideFilters.actionPattern" clearable><el-option v-for="item in actionPatterns" :key="item" :label="item" :value="item" /></el-select></label>
+              <label><span>器材</span><el-select v-model="guideFilters.equipment" clearable><el-option v-for="item in equipments" :key="item" :label="item" :value="item" /></el-select></label>
+              <label class="checkbox-field"><span>图片状态</span><el-checkbox v-model="guideFilters.missingImageOnly">只看未自定义图片</el-checkbox></label>
+              <div class="field-action">
+                <el-button type="primary" :icon="Search" :loading="guideLibraryLoading" @click="loadGuideLibrary">筛选</el-button>
+                <el-button @click="clearGuideFilters">重置</el-button>
+              </div>
+            </div>
+            <div class="admin-list guide-admin-list">
+              <article v-for="item in guideLibrary" :key="item.id">
+                <div>
+                  <span>{{ item.actionPattern }} · {{ item.equipment }}</span>
+                  <strong>{{ item.actionName || item.actionPattern }}</strong>
+                  <small>{{ item.imageurl ? '已上传图片' : '未上传图片' }} · {{ excerpt(item.description, 58) }}</small>
+                </div>
+                <div class="icon-actions">
+                  <el-button :icon="Edit" circle @click="openGuideAdminEdit(item)" />
+                  <el-button :icon="DeleteIcon" circle type="danger" @click="deleteGuideAdmin(item)" />
+                </div>
+              </article>
+              <el-empty v-if="!guideLibrary.length && !guideLibraryLoading" description="暂无动作指导" />
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-heading">
+              <div>
+                <p>新增动作</p>
+                <h2>动作指导表单</h2>
+              </div>
+              <div class="button-row">
+                <el-button @click="resetGuideAdminForm">重置</el-button>
+                <el-button type="primary" :icon="Check" @click="saveGuideAdmin">添加</el-button>
+              </div>
+            </div>
+            <div class="form-grid">
+              <label><span>动作模式</span><el-select v-model="guideAdminForm.actionPattern"><el-option v-for="item in actionPatterns" :key="item" :label="item" :value="item" /></el-select></label>
+              <label><span>器材</span><el-select v-model="guideAdminForm.equipment"><el-option v-for="item in equipments" :key="item" :label="item" :value="item" /></el-select></label>
+              <label><span>动作名称</span><el-input v-model="guideAdminForm.actionName" placeholder="例如：俯卧撑" /></label>
+              <label class="wide"><span>动作描述</span><el-input v-model="guideAdminForm.description" type="textarea" :rows="3" /></label>
+              <label class="wide"><span>执行步骤</span><el-input v-model="guideAdminForm.steps" type="textarea" :rows="4" placeholder="用 | 分隔步骤" /></label>
+              <label class="wide"><span>训练要点</span><el-input v-model="guideAdminForm.tips" type="textarea" :rows="4" placeholder="用 | 分隔要点" /></label>
+            </div>
+            <div class="guide-upload-panel">
+              <div class="upload-preview">
+                <img v-if="guideAdminForm.imageurl" :src="guideAdminForm.imageurl" alt="动作指导图预览" />
+                <div v-else class="task-placeholder"><el-icon><Guide /></el-icon></div>
+              </div>
+              <div class="upload-actions">
+                <el-upload
+                  :show-file-list="false"
+                  accept="image/*"
+                  :http-request="uploadGuideImage"
+                >
+                  <el-button :icon="Upload" :loading="guideImageUploading">上传图片</el-button>
+                </el-upload>
+                <el-button text type="danger" :disabled="!guideAdminForm.imageurl" @click="clearGuideAdminImage">清空图片</el-button>
+                <small v-if="guideAdminForm.imageurl">{{ guideAdminForm.imageurl }}</small>
+              </div>
+            </div>
+          </section>
+        </div>
       </section>
 
       <section v-if="activeView === 'admin'" class="content-stack">
@@ -1755,25 +1997,28 @@ onMounted(() => {
         </div>
         <div class="panel">
           <div class="panel-heading"><div><p>账号审核</p><h2>用户列表</h2></div><el-button :icon="Refresh" @click="loadUsers">刷新</el-button></div>
-          <el-table :data="adminUsers" stripe>
-            <el-table-column prop="username" label="用户名" width="130" />
-            <el-table-column prop="nickname" label="昵称" width="140" />
-            <el-table-column prop="identity" label="身份" width="110" />
-            <el-table-column label="审核" width="110"><template #default="{ row }">{{ row.registered ? '已通过' : '待审核' }}</template></el-table-column>
-            <el-table-column prop="specialty" label="方向" min-width="160" />
-            <el-table-column label="操作" width="230" fixed="right">
-              <template #default="{ row }">
-                <el-button link type="primary" @click="openAdminEdit(row)">编辑</el-button>
-                <el-button link type="warning" @click="toggleRegister(row)">{{ row.registered ? '撤回' : '通过' }}</el-button>
-                <el-button link type="danger" @click="deleteUser(row)">删除</el-button>
-              </template>
-            </el-table-column>
-          </el-table>
+          <div class="table-shell">
+            <el-table :data="adminUsers" stripe class="admin-user-table">
+              <el-table-column prop="username" label="用户名" width="130" />
+              <el-table-column prop="nickname" label="昵称" width="140" />
+              <el-table-column prop="identity" label="身份" width="110" />
+              <el-table-column label="审核" width="110"><template #default="{ row }">{{ row.registered ? '已通过' : '待审核' }}</template></el-table-column>
+              <el-table-column prop="specialty" label="方向" min-width="160" />
+              <el-table-column label="操作" width="220">
+                <template #default="{ row }">
+                  <el-button link type="primary" @click="openAdminEdit(row)">编辑</el-button>
+                  <el-button link type="warning" @click="toggleRegister(row)">{{ row.registered ? '撤回' : '通过' }}</el-button>
+                  <el-button link type="danger" @click="deleteUser(row)">删除</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
         </div>
       </section>
+      </AdminDashboard>
     </main>
 
-    <el-dialog v-model="adminEditVisible" title="编辑用户" width="680px">
+    <el-dialog v-model="adminEditVisible" title="编辑用户" width="min(680px, 92vw)">
       <div class="form-grid">
         <label><span>用户名</span><el-input v-model="adminEditForm.username" disabled /></label>
         <label><span>昵称</span><el-input v-model="adminEditForm.nickname" /></label>
@@ -1786,13 +2031,56 @@ onMounted(() => {
       <template #footer><el-button @click="adminEditVisible = false">取消</el-button><el-button type="primary" @click="saveAdminEdit">保存</el-button></template>
     </el-dialog>
 
-    <el-dialog v-model="articleEditVisible" title="编辑文章" width="760px">
+    <el-dialog v-model="articleEditVisible" title="编辑文章" width="min(760px, 92vw)">
       <div class="form-grid">
         <label><span>标题</span><el-input v-model="articleEditForm.title" /></label>
         <label><span>主题</span><el-input v-model="articleEditForm.topic" /></label>
         <label class="wide"><span>内容</span><el-input v-model="articleEditForm.content" type="textarea" :rows="9" /></label>
       </div>
       <template #footer><el-button @click="articleEditVisible = false">取消</el-button><el-button type="primary" @click="saveArticleEdit">保存</el-button></template>
+    </el-dialog>
+
+    <el-dialog v-model="noticeEditVisible" title="编辑公告" width="min(720px, 92vw)">
+      <div class="form-grid">
+        <label><span>标题</span><el-input v-model="noticeEditForm.title" /></label>
+        <label class="wide"><span>内容</span><el-input v-model="noticeEditForm.content" type="textarea" :rows="8" /></label>
+      </div>
+      <template #footer>
+        <el-button @click="noticeEditVisible = false">取消</el-button>
+        <el-button type="primary" @click="saveNoticeEdit">保存</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="guideEditVisible" title="编辑动作指导" width="min(820px, 92vw)">
+      <div class="form-grid">
+        <label><span>动作模式</span><el-select v-model="guideEditForm.actionPattern"><el-option v-for="item in actionPatterns" :key="item" :label="item" :value="item" /></el-select></label>
+        <label><span>器材</span><el-select v-model="guideEditForm.equipment"><el-option v-for="item in equipments" :key="item" :label="item" :value="item" /></el-select></label>
+        <label><span>动作名称</span><el-input v-model="guideEditForm.actionName" placeholder="例如：俯卧撑" /></label>
+        <label class="wide"><span>动作描述</span><el-input v-model="guideEditForm.description" type="textarea" :rows="3" /></label>
+        <label class="wide"><span>执行步骤</span><el-input v-model="guideEditForm.steps" type="textarea" :rows="4" placeholder="用 | 分隔步骤" /></label>
+        <label class="wide"><span>训练要点</span><el-input v-model="guideEditForm.tips" type="textarea" :rows="4" placeholder="用 | 分隔要点" /></label>
+      </div>
+      <div class="guide-upload-panel dialog-upload-panel">
+        <div class="upload-preview">
+          <img v-if="guideEditForm.imageurl" :src="guideEditForm.imageurl" alt="动作指导图预览" />
+          <div v-else class="task-placeholder"><el-icon><Guide /></el-icon></div>
+        </div>
+        <div class="upload-actions">
+          <el-upload
+            :show-file-list="false"
+            accept="image/*"
+            :http-request="uploadGuideEditImage"
+          >
+            <el-button :icon="Upload" :loading="guideImageUploading">上传图片</el-button>
+          </el-upload>
+          <el-button text type="danger" :disabled="!guideEditForm.imageurl" @click="clearGuideEditImage">清空图片</el-button>
+          <small v-if="guideEditForm.imageurl">{{ guideEditForm.imageurl }}</small>
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="guideEditVisible = false">取消</el-button>
+        <el-button type="primary" @click="saveGuideEdit">保存</el-button>
+      </template>
     </el-dialog>
   </div>
 </template>
@@ -2305,6 +2593,15 @@ onMounted(() => {
   margin-bottom: 18px;
 }
 
+.panel-heading > div,
+.panel-heading h2,
+.panel-heading p,
+.topbar-actions,
+.button-row,
+.icon-actions {
+  min-width: 0;
+}
+
 .overview-stack .panel-heading {
   margin-bottom: 12px;
 }
@@ -2335,13 +2632,49 @@ onMounted(() => {
   font-weight: 800;
 }
 
+.form-grid label span,
+.form-grid :deep(.el-input),
+.form-grid :deep(.el-select),
+.form-grid :deep(.el-input-number),
+.form-grid :deep(.el-textarea) {
+  min-width: 0;
+  width: 100%;
+}
+
 .form-grid label.wide {
   grid-column: 1 / -1;
+}
+
+.form-grid label.checkbox-field {
+  align-content: end;
+}
+
+.checkbox-field :deep(.el-checkbox) {
+  min-height: 32px;
+  height: auto;
+  align-items: center;
+}
+
+.checkbox-field :deep(.el-checkbox__label) {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .field-action {
   display: flex;
   align-items: end;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.field-action :deep(.el-button + .el-button) {
+  margin-left: 0;
+}
+
+.field-action :deep(.el-button) {
+  min-width: 0;
 }
 
 .muted,
@@ -2608,12 +2941,16 @@ onMounted(() => {
 
 .heatmap-grid {
   display: grid;
-  grid-template-columns: repeat(35, minmax(8px, 1fr));
-  gap: 5px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  grid-template-columns: repeat(35, minmax(0, 1fr));
+  gap: clamp(2px, 0.35vw, 5px);
   align-items: end;
 }
 
 .heatmap-grid span {
+  min-width: 0;
   min-height: 34px;
   border-radius: 6px;
   border: 1px solid #e0e6dc;
@@ -2821,6 +3158,53 @@ onMounted(() => {
   margin: 0;
 }
 
+.feed-row > div,
+.notice-list article > div,
+.admin-list article > div:first-child,
+.article-card,
+.notice-card,
+.task-card,
+.reader-box,
+.related-panel,
+.guide-library-card,
+.guide-library-card > div:last-child {
+  min-width: 0;
+}
+
+.feed-row h3,
+.feed-row p,
+.feed-row small,
+.article-card h3,
+.article-card p,
+.article-card small,
+.notice-card h3,
+.notice-card p,
+.notice-card small,
+.task-body h3,
+.task-body p,
+.task-tags em,
+.task-dose strong,
+.guide-columns li,
+.reader-article h2,
+.reader-article p,
+.reader-meta small,
+.related-panel button,
+.timeline-row p,
+.result-block h3,
+.result-block p,
+.reader-box h3,
+.clean-list li,
+.guide-library-card span,
+.guide-library-card h3,
+.guide-library-card p,
+.admin-list strong,
+.admin-list small,
+.admin-list span,
+.macro-grid strong,
+.training-day-tip {
+  overflow-wrap: anywhere;
+}
+
 .feed-row p,
 .article-card p,
 .notice-card p {
@@ -2831,10 +3215,16 @@ onMounted(() => {
 .feed-row span,
 .article-card span,
 .admin-list span {
+  width: fit-content;
+  max-width: 100%;
   border-radius: 8px;
   padding: 7px 10px;
   font-size: 12px;
   font-weight: 900;
+}
+
+.feed-row > span {
+  max-width: 132px;
 }
 
 .mint { background: #dff4ea; color: #21634e; }
@@ -2893,8 +3283,13 @@ onMounted(() => {
 .article-card footer {
   display: flex;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 12px;
   color: #7b8983;
+}
+
+.article-card footer small {
+  min-width: 0;
 }
 
 .article-card em {
@@ -3001,6 +3396,22 @@ onMounted(() => {
   font-size: 24px;
 }
 
+.task-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.task-tags em {
+  border-radius: 8px;
+  background: #eef7f1;
+  color: #23614e;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 900;
+}
+
 .task-dose {
   display: flex;
   flex-wrap: wrap;
@@ -3019,6 +3430,24 @@ onMounted(() => {
 .task-body p {
   color: #5b6c64;
   line-height: 1.7;
+}
+
+.task-coach-note,
+.task-alternative {
+  border: 1px solid #e4eadf;
+  border-radius: 8px;
+  background: #fbfcf8;
+  padding: 10px 12px;
+}
+
+.task-coach-note {
+  color: #234a40;
+  font-weight: 800;
+}
+
+.task-alternative {
+  color: #7a5825;
+  background: #fff9e8;
 }
 
 .guide-columns {
@@ -3173,6 +3602,15 @@ onMounted(() => {
 
 .guide-filter-row {
   margin-bottom: 18px;
+  align-items: end;
+}
+
+.form-grid.compact.guide-filter-row {
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+}
+
+.guide-filter-row .field-action :deep(.el-button) {
+  flex: 1 1 82px;
 }
 
 .guide-library-grid {
@@ -3239,6 +3677,12 @@ onMounted(() => {
   overflow: visible;
 }
 
+.admin-stack {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
+}
+
 .admin-list article {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
@@ -3252,6 +3696,61 @@ onMounted(() => {
 
 .admin-list strong {
   margin: 8px 0 4px;
+}
+
+.guide-admin-grid {
+  align-items: start;
+}
+
+.guide-upload-panel {
+  display: grid;
+  grid-template-columns: 210px minmax(0, 1fr);
+  gap: 16px;
+  margin-top: 16px;
+  border: 1px solid #dfe4da;
+  border-radius: 8px;
+  background: #fbfcf8;
+  padding: 14px;
+}
+
+.upload-preview {
+  min-height: 150px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: linear-gradient(135deg, #eef5ef, #f7f1df);
+}
+
+.upload-preview img {
+  width: 100%;
+  height: 150px;
+  object-fit: contain;
+  display: block;
+  padding: 8px;
+}
+
+.upload-preview .task-placeholder {
+  min-height: 150px;
+}
+
+.upload-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.upload-actions small {
+  max-width: 100%;
+  color: #66766f;
+  word-break: break-all;
+}
+
+.guide-admin-list {
+  max-height: 720px;
+  overflow: auto;
+  padding-right: 4px;
 }
 
 .draft-actions {
@@ -3368,6 +3867,7 @@ onMounted(() => {
 .macro-grid article div {
   display: flex;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 10px;
 }
 
@@ -3384,6 +3884,61 @@ onMounted(() => {
   color: #31443c;
   font-weight: 800;
   line-height: 1.7;
+}
+
+.nutrition-tip-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.training-day-tip.rest {
+  border-left-color: #f2c35d;
+  background: #fff9e8;
+}
+
+.nutrition-detail-grid,
+.nutrition-watchouts {
+  margin-top: 16px;
+}
+
+.table-shell {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.admin-user-table {
+  min-width: 870px;
+}
+
+:deep(.admin-user-table .cell) {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+:deep(.admin-user-table .el-button + .el-button) {
+  margin-left: 8px;
+}
+
+:deep(.el-dialog) {
+  max-width: calc(100vw - 24px);
+}
+
+:deep(.el-dialog__body) {
+  max-height: min(72vh, 680px);
+  overflow: auto;
+}
+
+:deep(.el-dialog__footer) {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+:deep(.el-dialog__footer .el-button + .el-button) {
+  margin-left: 0;
 }
 
 @keyframes surface-in {
@@ -3468,6 +4023,7 @@ onMounted(() => {
   .product-flow-grid,
   .two-column,
   .admin-grid,
+  .nutrition-tip-grid,
   .macro-grid,
   .reader-page,
   .guide-columns {
@@ -3584,6 +4140,8 @@ onMounted(() => {
   .article-grid,
   .task-grid,
   .guide-library-grid,
+  .guide-upload-panel,
+  .nutrition-tip-grid,
   .plan-execution-bar,
   .plan-coach-strip,
   .achievement-grid,

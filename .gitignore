@@ -30,6 +30,10 @@ pnpm-debug.log*
 *.mv.db
 *.trace.db
 
+# Runtime uploads
+fitnessGuidance/uploads/exercise-guides/*
+!fitnessGuidance/uploads/exercise-guides/.gitkeep
+
 # IDE files
 .idea/
 .vscode/

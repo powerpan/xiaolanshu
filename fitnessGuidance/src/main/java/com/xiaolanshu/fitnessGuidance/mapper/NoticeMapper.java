@@ -18,15 +18,15 @@ public interface NoticeMapper {
             "values(#{title},#{content},#{author},now())")
     void addnotice(String author,String title,String content);
 
-    @Delete("DELETE from notices where title =#{title} AND content =#{content}")
-    void deletenotice(String title,String content);
+    @Delete("DELETE FROM notices WHERE id = #{id}")
+    void deleteNoticeById(Integer id);
 
 
     @Update("UPDATE notices " +
             "SET title = #{title}, " +
             "content = #{content} " +
-            "WHERE title = #{lasttitle} AND content =#{lastcontent} ")
-    void editnotice(String lasttitle,String lastcontent, String title, String content);
+            "WHERE id = #{id}")
+    void editNoticeById(Integer id, String title, String content);
 
     @Insert("INSERT into tempnotices(title,content,author,tempnoticetime) "+
             "values(#{title},#{content},#{authorname},now())")

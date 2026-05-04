@@ -12,9 +12,9 @@ public interface NoticeService {
 
     void addnotice(String author,String title,String content);
 
-    void deletenotice(String title,String content);
+    void deleteNoticeById(Integer id);
 
-    void editnotice(String lasttitle,String lastcontent,String title,String content);
+    void editNoticeById(Integer id,String title,String content);
 
     void savetempnotice(String title, String content, String authorname);
 

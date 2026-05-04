@@ -5,6 +5,8 @@ import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+import java.nio.file.Path;
+
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
     @Override
@@ -17,10 +19,10 @@ public class WebConfig implements WebMvcConfigurer {
                 .maxAge(3600);
     }
 
-    // 新增静态资源映射，将 D:/fitness-images/exercises/ 映射为 /exercise-images/**
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        registry.addResourceHandler("/exercises/**")
-                .addResourceLocations("file:D:/fitness-images/exercises/");
+        Path uploadRoot = Path.of("uploads").toAbsolutePath().normalize();
+        registry.addResourceHandler("/uploads/**")
+                .addResourceLocations(uploadRoot.toUri().toString());
     }
 }

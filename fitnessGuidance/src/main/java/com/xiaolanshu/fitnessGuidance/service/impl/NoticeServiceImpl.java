@@ -33,15 +33,15 @@ public class NoticeServiceImpl implements NoticeService {
     }
 
     @Override
-    public void deletenotice(String title,String content)
+    public void deleteNoticeById(Integer id)
     {
-        noticemapper.deletenotice(title,content);
+        noticemapper.deleteNoticeById(id);
     }
 
     @Override
-    public void editnotice(String lasttitle,String lastcontent,String title,String content)
+    public void editNoticeById(Integer id,String title,String content)
     {
-        noticemapper.editnotice(lasttitle,lastcontent,title,content);
+        noticemapper.editNoticeById(id,title,content);
     }
 
     @Override

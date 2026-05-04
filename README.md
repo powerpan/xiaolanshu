@@ -2,6 +2,12 @@
 
 这是一个前后端分离的健身指导项目。前端使用 Vue 3 + Vite + Element Plus，后端使用 Spring Boot + MyBatis，数据库使用项目内本地 H2 文件库。
 
+## 项目文档
+
+- [产品化升级计划](docs/产品化升级计划.md)：记录后续功能升级、前端重构和产品体验完善方向。
+- [功能验收清单](docs/验收清单.md)：记录普通用户端、管理端和基础回归检查路径。
+- [打卡统计与饮食推荐数据表结构](打卡统计与饮食推荐数据表结构.md)：说明当前打卡统计和饮食推荐相关数据来源。
+
 ## 环境要求
 
 需要在本机安装：
@@ -77,10 +83,22 @@ http://127.0.0.1:5173
 
 ```text
 管理员：admin / admin123
-普通用户：demo / demo123
+普通用户：demo / demo
 ```
 
 管理员可以看到内容管理、用户管理等页面；普通用户主要使用训练计划、动作指导、饮食建议、打卡和内容阅读功能。
+
+## 功能边界
+
+普通用户端聚焦训练执行和内容阅读：
+
+- 首页、个人资料、健身需求、训练计划、动作指导、训练打卡、训练复盘、饮食建议、公告中心、文章广场和详情阅读。
+
+管理端聚焦维护和审核：
+
+- 内容管理、公告编辑、文章编辑、动作库管理、动作图片上传、用户管理和注册审核。
+
+管理员账号不会显示普通用户训练入口，普通用户也不会看到公告、文章和动作库的编辑入口。
 
 ## JWT 密钥配置
 
@@ -199,15 +217,17 @@ cd fitnessGuidance
 MAVEN_USER_HOME=.m2 ./mvnw spring-boot:run
 ```
 
-## 本地动作图片
+## 动作图片上传
 
-动作指导页使用的图片已经放在项目本地：
+动作指导页支持展示本地图片，但图片不再由前端内置，也不再使用自动绘制的 SVG。当前图片由管理员在动作库管理中手动上传，后端会保存到：
 
 ```text
-vue-project/public/exercise-guides
+fitnessGuidance/uploads/exercise-guides
 ```
 
-页面加载图片时走 `/exercise-guides/...` 本地静态路径，不需要每次联网加载。当前初始化数据内的 47 条动作指导都已经配置本地图片路径，图片来源署名和原始来源链接保留在动作指导页面中。
+页面加载图片时走后端静态路径，不需要每次联网加载。仓库只提交上传目录占位文件 `.gitkeep`，不会提交运行时上传的图片文件。
+
+动作指导库支持筛选“只看未自定义图片”，方便管理员逐步补齐动作图片。没有图片的动作会显示占位，不会在训练计划中强行展示图片。
 
 动作指导数据同时维护在两份初始化脚本里：
 
@@ -222,6 +242,28 @@ fitnessGuidance/database/opengauss-init.sql
 
 ```text
 fitnessGuidance/data
+```
+
+## 验证项目
+
+后端测试：
+
+```sh
+cd fitnessGuidance
+MAVEN_USER_HOME=.m2 ./mvnw test
+```
+
+前端构建：
+
+```sh
+cd vue-project
+npm run build
+```
+
+人工验收路径见：
+
+```text
+docs/验收清单.md
 ```
 
 ## 常用命令
@@ -257,7 +299,8 @@ fitnessGuidance/target
 ```text
 fitnessGuidance/        后端 Spring Boot 项目
 vue-project/            前端 Vue 项目
-vue-project/public/     前端静态资源
+vue-project/src/        前端源码
+fitnessGuidance/uploads/ 后端运行期上传目录，只提交占位文件
 fitnessGuidance/data/   本地 H2 数据库文件，运行后生成
 fitnessGuidance/.m2/    项目内 Maven 依赖缓存，运行后生成
 vue-project/node_modules/ 前端依赖，npm install 后生成
