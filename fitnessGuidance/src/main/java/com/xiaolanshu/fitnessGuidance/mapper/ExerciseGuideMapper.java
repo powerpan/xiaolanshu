@@ -38,7 +38,8 @@ public interface ExerciseGuideMapper {
             "<if test='missingStepsOnly != null and missingStepsOnly'>AND (steps IS NULL OR steps = '') </if>" +
             "<if test='missingTipsOnly != null and missingTipsOnly'>AND (tips IS NULL OR tips = '') </if>" +
             "<if test='missingMistakesOnly != null and missingMistakesOnly'>AND (commonmistakes IS NULL OR commonmistakes = '') </if>" +
-            "<if test='incompleteOnly != null and incompleteOnly'>AND ((imageurl IS NULL OR imageurl = '') OR (steps IS NULL OR steps = '') OR (tips IS NULL OR tips = '') OR (commonmistakes IS NULL OR commonmistakes = '') OR (primarymuscles IS NULL OR primarymuscles = '')) </if>" +
+            "<if test='missingAlternativesOnly != null and missingAlternativesOnly'>AND (alternatives IS NULL OR alternatives = '') </if>" +
+            "<if test='incompleteOnly != null and incompleteOnly'>AND ((imageurl IS NULL OR imageurl = '') OR (steps IS NULL OR steps = '') OR (tips IS NULL OR tips = '') OR (commonmistakes IS NULL OR commonmistakes = '') OR (primarymuscles IS NULL OR primarymuscles = '') OR (alternatives IS NULL OR alternatives = '')) </if>" +
             "ORDER BY actionpattern, equipment, actionname" +
             "</script>")
     ArrayList<ExerciseGuide> listexerciseguides(@Param("actionPattern") String actionPattern,
@@ -47,7 +48,8 @@ public interface ExerciseGuideMapper {
                                                 @Param("incompleteOnly") Boolean incompleteOnly,
                                                 @Param("missingStepsOnly") Boolean missingStepsOnly,
                                                 @Param("missingTipsOnly") Boolean missingTipsOnly,
-                                                @Param("missingMistakesOnly") Boolean missingMistakesOnly);
+                                                @Param("missingMistakesOnly") Boolean missingMistakesOnly,
+                                                @Param("missingAlternativesOnly") Boolean missingAlternativesOnly);
 
     @Insert("INSERT INTO exerciseguides(actionpattern, actionname, equipment, description, steps, tips, imageurl, imagecredit, imagesourceurl, " +
             "primarymuscles, secondarymuscles, difficulty, contraindications, commonmistakes, suitablefor, alternatives) " +

@@ -23,3 +23,11 @@ export const getPlanTaskRecords = (daytime) => unwrap(api.get('/fitnessplan/task
 export const savePlanTaskRecord = (payload) => unwrap(api.put('/fitnessplan/taskrecord', formBody(payload)))
 
 export const getTrainingPlanInsight = () => unwrap(api.get('/fitnessplan/insight'))
+
+export const getTrainingCycle = () => unwrap(api.get('/fitnessplan/cycle'))
+
+export const getPlanAdjustments = () => unwrap(api.get('/fitnessplan/adjustments'))
+
+export const replacePlanAction = (payload) => unwrap(api.get('/fitnessplan/action/replace', {
+  params: withToken(payload),
+}))

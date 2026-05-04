@@ -1,5 +1,7 @@
 package com.xiaolanshu.fitnessGuidance.controller;
 
+import com.xiaolanshu.fitnessGuidance.mapper.PlanAdjustmentRecordMapper;
+import com.xiaolanshu.fitnessGuidance.mapper.TrainingCycleMapper;
 import com.xiaolanshu.fitnessGuidance.pojo.*;
 import com.xiaolanshu.fitnessGuidance.service.*;
 import com.xiaolanshu.fitnessGuidance.utils.Jwtutil;
@@ -12,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.ArrayList;
 import java.util.Map;
+import java.time.LocalDate;
 
 @RestController
 @RequestMapping("/fitnessplan")
@@ -40,6 +43,12 @@ public class FitnessPlanController {
 
     @Autowired
     private FitnessCheckinService fitnessCheckinService;
+
+    @Autowired
+    private TrainingCycleMapper trainingCycleMapper;
+
+    @Autowired
+    private PlanAdjustmentRecordMapper planAdjustmentRecordMapper;
 
     @GetMapping("/getsplitmode")
     public Result<String> getsplitMode(@RequestHeader(name = "Authorization", required = false) String authorization,
@@ -169,6 +178,12 @@ public class FitnessPlanController {
                 if (task.getDescription() == null || task.getDescription().isBlank()) {
                     task.setDescription(exerciseGuide.getDescription());
                 }
+                task.setAlternativeGuides(exerciseGuideService.listAlternativeGuides(
+                        actionPattern,
+                        userProfile.getEquipment(),
+                        exerciseGuide.getId(),
+                        3
+                ));
             }
 
             enrichTask(task, userProfile);
@@ -177,6 +192,48 @@ public class FitnessPlanController {
         }
 
         return Result.success(actionTasks);
+    }
+
+    @GetMapping("/cycle")
+    public Result<TrainingCycle> cycle(@RequestHeader(name = "Authorization", required = false) String authorization,
+                                       String jwttoken) {
+        String username = parseUsername(resolveToken(authorization, jwttoken));
+        if (username == null) {
+            return Result.error("未登录");
+        }
+        UserProfile userProfile = userProfileService.getuserprofile(username);
+        if (userProfile == null) {
+            return Result.error("用户信息不存在");
+        }
+        return Result.success(ensureCurrentCycle(username, userProfile));
+    }
+
+    @GetMapping("/adjustments")
+    public Result<ArrayList<PlanAdjustmentRecord>> adjustments(@RequestHeader(name = "Authorization", required = false) String authorization,
+                                                               String jwttoken) {
+        String username = parseUsername(resolveToken(authorization, jwttoken));
+        if (username == null) {
+            return Result.error("未登录");
+        }
+        return Result.success(planAdjustmentRecordMapper.recent(username, 8));
+    }
+
+    @GetMapping("/action/replace")
+    public Result<ExerciseGuide> replaceAction(@RequestHeader(name = "Authorization", required = false) String authorization,
+                                               String jwttoken, String actionPattern, String preferredEquipment,
+                                               Integer currentGuideId) {
+        String username = parseUsername(resolveToken(authorization, jwttoken));
+        if (username == null) {
+            return Result.error("未登录");
+        }
+        if (actionPattern == null || actionPattern.isBlank()) {
+            return Result.error("动作模式不能为空");
+        }
+        ArrayList<ExerciseGuide> alternatives = exerciseGuideService.listAlternativeGuides(actionPattern, preferredEquipment, currentGuideId, 1);
+        if (alternatives == null || alternatives.isEmpty()) {
+            return Result.error("暂无可替换动作");
+        }
+        return Result.success(alternatives.get(0));
     }
 
     @GetMapping("/taskrecords")
@@ -219,7 +276,12 @@ public class FitnessPlanController {
                 : (int) Math.round(completedTasks * 100.0 / recordedTasks);
 
         TrainingPlanInsight insight = new TrainingPlanInsight();
+        TrainingCycle cycle = ensureCurrentCycle(username, userProfile);
         insight.setWeeklyTarget(userProfile.getWeeklyFrequency());
+        insight.setCycleWeek(cycle.getCycleWeek());
+        insight.setStage(cycle.getStage());
+        insight.setCycleGoal(cycle.getCycleGoal());
+        insight.setRecoveryDay(cycle.getRecoveryDay());
         insight.setRecordedTasks(recordedTasks == null ? 0 : recordedTasks);
         insight.setCompletedTasks(completedTasks == null ? 0 : completedTasks);
         insight.setCompletionRate(completionRate);
@@ -227,7 +289,57 @@ public class FitnessPlanController {
         insight.setRecommendation(resolvePlanRecommendation(userProfile, stats, completionRate));
         insight.setRecoveryHint(resolveRecoveryHint(stats, completionRate));
         insight.setNextAdjustment(resolveNextAdjustment(userProfile, completionRate));
+        insight.setAdjustmentHistory(planAdjustmentRecordMapper.recent(username, 3));
         return Result.success(insight);
+    }
+
+    private TrainingCycle ensureCurrentCycle(String username, UserProfile userProfile) {
+        TrainingCycle existing = trainingCycleMapper.current(username);
+        if (existing != null) {
+            return existing;
+        }
+        TrainingCycle cycle = new TrainingCycle();
+        cycle.setUsername(username);
+        cycle.setCycleWeek(1);
+        cycle.setStage(resolveCycleStage(userProfile));
+        cycle.setCycleGoal(resolveCycleGoal(userProfile));
+        cycle.setRecoveryDay(resolveRecoveryDay(userProfile));
+        cycle.setStartDate(LocalDate.now());
+        cycle.setEndDate(LocalDate.now().plusWeeks(4).minusDays(1));
+        cycle.setStatus("active");
+        trainingCycleMapper.insert(cycle);
+        return trainingCycleMapper.current(username);
+    }
+
+    private String resolveCycleStage(UserProfile userProfile) {
+        String level = userProfile.getExLevel();
+        String goal = userProfile.getFitnessGoal();
+        if ("新手".equals(level)) {
+            return "基础适应期";
+        }
+        if ("提升力量".equals(goal)) {
+            return "力量推进期";
+        }
+        if ("减脂".equals(goal) || "塑形".equals(goal)) {
+            return "密度提升期";
+        }
+        return "容量积累期";
+    }
+
+    private String resolveCycleGoal(UserProfile userProfile) {
+        return "围绕「" + userProfile.getFitnessGoal() + "」完成每周 "
+                + userProfile.getWeeklyFrequency() + " 次训练，并保证动作质量记录。";
+    }
+
+    private Integer resolveRecoveryDay(UserProfile userProfile) {
+        Integer frequency = userProfile.getWeeklyFrequency();
+        if (frequency == null || frequency <= 2) {
+            return 3;
+        }
+        if (frequency >= 5) {
+            return 6;
+        }
+        return 4;
     }
 
     private String resolveToken(String authorization, String jwttoken) {

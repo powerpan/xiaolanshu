@@ -123,7 +123,7 @@ class FitnessGuidanceApplicationTests {
         guide.setCommonMistakes("测试常见错误");
         exerciseGuideMapper.addExerciseGuide(guide);
 
-        List<ExerciseGuide> created = exerciseGuideMapper.listexerciseguides(actionPattern, equipment, false, false, false, false, false);
+        List<ExerciseGuide> created = exerciseGuideMapper.listexerciseguides(actionPattern, equipment, false, false, false, false, false, false);
         assertThat(created).hasSize(1);
 
         Integer id = created.get(0).getId();
@@ -134,7 +134,7 @@ class FitnessGuidanceApplicationTests {
             update.setImageCredit("管理员上传");
             exerciseGuideMapper.updateExerciseGuide(update);
 
-            ExerciseGuide updated = exerciseGuideMapper.listexerciseguides(actionPattern, equipment, false, false, false, false, false).get(0);
+            ExerciseGuide updated = exerciseGuideMapper.listexerciseguides(actionPattern, equipment, false, false, false, false, false, false).get(0);
             assertThat(updated.getActionName()).isEqualTo("测试动作名称-已更新");
             assertThat(updated.getImageurl()).isEqualTo("/uploads/exercise-guides/test.png");
             assertThat(updated.getImageCredit()).isEqualTo("管理员上传");

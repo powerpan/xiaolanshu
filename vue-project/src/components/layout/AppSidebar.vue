@@ -1,4 +1,6 @@
 <script setup>
+import yueluLogo from '@/assets/yuelu-logo.png'
+
 defineProps({
   navGroups: {
     type: Array,
@@ -32,9 +34,9 @@ const emit = defineEmits(['open-view'])
 <template>
   <aside class="sidebar">
     <div class="brand">
-      <span class="brand-logo">XL</span>
+      <img class="brand-logo" :src="yueluLogo" alt="跃鹿运动标识">
       <div>
-        <strong>小蓝书</strong>
+        <strong>跃鹿运动</strong>
         <small>{{ isAdmin ? '管理控制台' : '训练、饮食与内容' }}</small>
       </div>
     </div>
@@ -64,18 +66,22 @@ const emit = defineEmits(['open-view'])
 
 <style scoped>
 .sidebar {
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
+  z-index: 30;
+  width: 280px;
   height: 100vh;
   padding: 24px;
   background:
-    linear-gradient(150deg, rgba(16, 42, 40, 0.96), rgba(21, 77, 67, 0.96)),
-    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0 1px, transparent 1px 18px);
+    linear-gradient(160deg, rgba(58, 33, 23, 0.98) 0%, rgba(114, 49, 24, 0.98) 54%, rgba(169, 77, 26, 0.96) 100%),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.06), transparent 34%);
   color: #fff;
   display: flex;
   flex-direction: column;
-  gap: 26px;
-  box-shadow: 20px 0 55px rgba(21, 42, 36, 0.14);
+  gap: clamp(14px, 3vh, 26px);
+  overflow: hidden;
+  box-shadow: 18px 0 46px rgba(78, 44, 26, 0.16);
 }
 
 .brand {
@@ -85,15 +91,14 @@ const emit = defineEmits(['open-view'])
 }
 
 .brand-logo {
-  width: 44px;
-  height: 44px;
-  display: grid;
-  place-items: center;
+  width: 48px;
+  height: 48px;
+  display: block;
   border-radius: 8px;
-  background: linear-gradient(135deg, #ffe29a, #f2c35d 50%, #85d4ff);
-  color: #17211c;
-  font-weight: 900;
-  box-shadow: 0 12px 28px rgba(242, 195, 93, 0.28);
+  background: rgba(255, 255, 255, 0.94);
+  object-fit: cover;
+  object-position: center 54%;
+  box-shadow: 0 12px 28px rgba(233, 121, 26, 0.28);
 }
 
 .brand strong,
@@ -107,13 +112,15 @@ const emit = defineEmits(['open-view'])
 }
 
 .nav-list {
-  overflow-y: auto;
+  min-height: 0;
+  overflow: hidden;
   display: grid;
-  gap: 20px;
+  align-content: start;
+  gap: clamp(10px, 2.2vh, 20px);
 }
 
 .nav-list p {
-  margin: 0 0 8px;
+  margin: 0 0 clamp(4px, 0.8vh, 8px);
   color: rgba(255, 255, 255, 0.48);
   font-size: 12px;
   font-weight: 800;
@@ -122,7 +129,7 @@ const emit = defineEmits(['open-view'])
 .nav-list button {
   position: relative;
   width: 100%;
-  min-height: 42px;
+  min-height: clamp(34px, 5vh, 42px);
   padding: 0 12px;
   border: 0;
   border-radius: 8px;
@@ -178,11 +185,15 @@ const emit = defineEmits(['open-view'])
 @media (max-width: 820px) {
   .sidebar {
     position: sticky;
+    left: auto;
     z-index: 20;
     height: auto;
+    width: 100%;
+    min-width: 0;
     padding: 10px 12px;
     gap: 10px;
-    box-shadow: 0 10px 30px rgba(21, 42, 36, 0.16);
+    overflow: visible;
+    box-shadow: 0 10px 30px rgba(43, 33, 28, 0.16);
   }
 
   .brand {
@@ -190,8 +201,8 @@ const emit = defineEmits(['open-view'])
   }
 
   .brand-logo {
-    width: 36px;
-    height: 36px;
+    width: 38px;
+    height: 38px;
   }
 
   .brand small,
@@ -202,23 +213,25 @@ const emit = defineEmits(['open-view'])
 
   .nav-list {
     display: flex;
-    overflow-x: auto;
+    flex-wrap: wrap;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow: visible;
     gap: 8px;
-    padding-bottom: 2px;
-    scrollbar-width: none;
+    padding-bottom: 0;
   }
 
   .nav-list section {
     min-width: 0;
-    display: flex;
-    gap: 8px;
+    display: contents;
   }
 
   .nav-list button {
     width: auto;
-    min-width: 94px;
+    min-width: max(96px, calc((100% - 16px) / 3));
     min-height: 36px;
-    flex: 0 0 auto;
+    flex: 1 1 96px;
     justify-content: center;
     padding: 0 10px;
   }
@@ -232,6 +245,44 @@ const emit = defineEmits(['open-view'])
 @media (max-width: 520px) {
   .sidebar {
     padding: 10px 12px;
+  }
+
+  .nav-list button {
+    min-width: calc((100% - 8px) / 2);
+    flex-basis: calc((100% - 8px) / 2);
+  }
+}
+
+@media (max-height: 680px) and (min-width: 821px) {
+  .sidebar {
+    padding: 16px;
+    gap: 12px;
+  }
+
+  .brand-logo {
+    width: 40px;
+    height: 40px;
+  }
+
+  .brand small,
+  .sidebar-user small {
+    display: none;
+  }
+
+  .nav-list {
+    gap: 8px;
+  }
+
+  .nav-list p {
+    margin-bottom: 4px;
+  }
+
+  .nav-list button {
+    min-height: 32px;
+  }
+
+  .sidebar-user {
+    padding: 10px;
   }
 }
 </style>

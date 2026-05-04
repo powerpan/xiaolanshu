@@ -1,14 +1,14 @@
-/* color palette from <https://github.com/vuejs/theme> */
+/* Project color palette */
 :root {
   --vt-c-white: #ffffff;
-  --vt-c-white-soft: #f8f8f8;
-  --vt-c-white-mute: #f2f2f2;
+  --vt-c-white-soft: #fffaf4;
+  --vt-c-white-mute: #f3ece4;
 
-  --vt-c-black: #181818;
-  --vt-c-black-soft: #222222;
-  --vt-c-black-mute: #282828;
+  --vt-c-black: #2b211c;
+  --vt-c-black-soft: #3a2117;
+  --vt-c-black-mute: #4d4038;
 
-  --vt-c-indigo: #2c3e50;
+  --vt-c-indigo: #3a2f2a;
 
   --vt-c-divider-light-1: rgba(60, 60, 60, 0.29);
   --vt-c-divider-light-2: rgba(60, 60, 60, 0.12);
@@ -32,6 +32,15 @@
 
   --color-heading: var(--vt-c-text-light-1);
   --color-text: var(--vt-c-text-light-1);
+
+  --el-color-primary: #e9791a;
+  --el-color-primary-light-3: #f59e0b;
+  --el-color-primary-light-5: #ffb454;
+  --el-color-primary-light-7: #ffd39a;
+  --el-color-primary-light-8: #ffe3bd;
+  --el-color-primary-light-9: #fff1df;
+  --el-color-primary-dark-2: #a64716;
+  --el-border-radius-base: 8px;
 
   --section-gap: 160px;
 }

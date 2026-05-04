@@ -1,6 +1,7 @@
 package com.xiaolanshu.fitnessGuidance.service.impl;
 
 import com.xiaolanshu.fitnessGuidance.mapper.ExerciseGuideMapper;
+import com.xiaolanshu.fitnessGuidance.mapper.ExerciseAlternativeMapper;
 import com.xiaolanshu.fitnessGuidance.pojo.ExerciseGuide;
 import com.xiaolanshu.fitnessGuidance.service.ExerciseGuideService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,6 +15,9 @@ public class ExerciseGuideServiceImpl implements ExerciseGuideService {
     @Autowired
     private ExerciseGuideMapper exerciseGuideMapper;
 
+    @Autowired
+    private ExerciseAlternativeMapper exerciseAlternativeMapper;
+
     @Override
     public ExerciseGuide getexerciseguide(String actionPattern, String equipment){
         return enrichDefaults(exerciseGuideMapper.getexerciseguide(actionPattern,equipment));
@@ -22,7 +26,8 @@ public class ExerciseGuideServiceImpl implements ExerciseGuideService {
     @Override
     public ArrayList<ExerciseGuide> listexerciseguides(String actionPattern, String equipment, Boolean missingImageOnly,
                                                        Boolean incompleteOnly, Boolean missingStepsOnly,
-                                                       Boolean missingTipsOnly, Boolean missingMistakesOnly) {
+                                                       Boolean missingTipsOnly, Boolean missingMistakesOnly,
+                                                       Boolean missingAlternativesOnly) {
         String safePattern = actionPattern == null || actionPattern.isBlank() ? null : actionPattern;
         String safeEquipment = equipment == null || equipment.isBlank() ? null : equipment;
         ArrayList<ExerciseGuide> guides = exerciseGuideMapper.listexerciseguides(
@@ -32,7 +37,21 @@ public class ExerciseGuideServiceImpl implements ExerciseGuideService {
                 Boolean.TRUE.equals(incompleteOnly),
                 Boolean.TRUE.equals(missingStepsOnly),
                 Boolean.TRUE.equals(missingTipsOnly),
-                Boolean.TRUE.equals(missingMistakesOnly)
+                Boolean.TRUE.equals(missingMistakesOnly),
+                Boolean.TRUE.equals(missingAlternativesOnly)
+        );
+        guides.forEach(this::enrichDefaults);
+        return guides;
+    }
+
+    @Override
+    public ArrayList<ExerciseGuide> listAlternativeGuides(String actionPattern, String preferredEquipment, Integer currentGuideId, Integer limit) {
+        Integer safeLimit = limit == null || limit < 1 ? 4 : Math.min(limit, 8);
+        ArrayList<ExerciseGuide> guides = exerciseAlternativeMapper.alternativesForPattern(
+                actionPattern,
+                preferredEquipment,
+                currentGuideId,
+                safeLimit
         );
         guides.forEach(this::enrichDefaults);
         return guides;
@@ -113,7 +132,36 @@ public class ExerciseGuideServiceImpl implements ExerciseGuideService {
         if (isBlank(guide.getAlternatives())) {
             guide.setAlternatives(defaultAlternatives(guide.getActionPattern()));
         }
+        guide.setMissingImage(isBlank(guide.getImageurl()));
+        guide.setIncomplete(isBlank(guide.getSteps())
+                || isBlank(guide.getTips())
+                || isBlank(guide.getCommonMistakes())
+                || isBlank(guide.getPrimaryMuscles())
+                || isBlank(guide.getAlternatives()));
+        guide.setQualityScore(resolveQualityScore(guide));
         return guide;
+    }
+
+    private Integer resolveQualityScore(ExerciseGuide guide) {
+        int passed = 0;
+        String[] fields = {
+                guide.getActionName(),
+                guide.getDescription(),
+                guide.getSteps(),
+                guide.getTips(),
+                guide.getPrimaryMuscles(),
+                guide.getDifficulty(),
+                guide.getCommonMistakes(),
+                guide.getContraindications(),
+                guide.getSuitableFor(),
+                guide.getAlternatives()
+        };
+        for (String field : fields) {
+            if (!isBlank(field)) {
+                passed += 1;
+            }
+        }
+        return Math.round(passed * 100F / fields.length);
     }
 
     private boolean isBlank(String value) {

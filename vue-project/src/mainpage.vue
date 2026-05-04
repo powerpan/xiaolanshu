@@ -61,18 +61,34 @@ import {
   uploadExerciseGuideImage,
 } from './services/exerciseGuideApi'
 import {
+  addEatingScenario,
+  addFoodItem,
+  addFoodReplacement,
+  addMealTemplate,
+  deleteEatingScenario,
+  deleteFoodItem,
+  deleteFoodReplacement,
+  deleteMealTemplate,
+  getAdminNutritionLibrary,
   getNutritionPreference,
-  getNutritionHistory,
+  getNutritionLibrary,
   getNutritionRecommendation,
+  updateEatingScenario,
+  updateFoodItem,
+  updateFoodReplacement,
+  updateMealTemplate,
   updateNutritionPreference,
 } from './services/nutritionApi'
 import {
   getActionTasks,
   getCheckinStats,
+  getPlanAdjustments,
   getPlanTaskRecords,
   getSplitMode,
   getTodayCheckin,
+  getTrainingCycle,
   getTrainingPlanInsight,
+  replacePlanAction,
   savePlanTaskRecord,
   saveTodayCheckin,
 } from './services/trainingApi'
@@ -93,6 +109,7 @@ const route = useRoute()
 const loading = ref(false)
 const activeView = ref('overview')
 const contentAdminTab = ref('articles')
+const nutritionAdminTab = ref('templates')
 
 const user = ref(null)
 const profile = ref(null)
@@ -111,8 +128,11 @@ const guideImageUploading = ref(false)
 const todayCheckin = ref(null)
 const checkinStats = ref(null)
 const nutrition = ref(null)
-const nutritionHistory = ref([])
+const nutritionLibrary = ref(null)
+const nutritionAdminLibrary = ref(null)
 const planInsight = ref(null)
+const trainingCycle = ref(null)
+const planAdjustments = ref([])
 const selectedArticle = ref(null)
 const selectedNotice = ref(null)
 const checkedTasks = ref({})
@@ -202,6 +222,7 @@ const guideFilters = reactive({
   missingStepsOnly: false,
   missingTipsOnly: false,
   missingMistakesOnly: false,
+  missingAlternativesOnly: false,
 })
 
 const guideAdminForm = reactive({
@@ -249,6 +270,46 @@ const nutritionPreferenceForm = reactive({
   tastePreference: '清淡',
 })
 
+const foodItemForm = reactive({
+  id: '',
+  name: '',
+  category: '低脂蛋白',
+  caloriesPer100g: 100,
+  proteinPer100g: 10,
+  carbohydratePer100g: 0,
+  fatPer100g: 1,
+  tags: '',
+  scene: '通用',
+})
+
+const mealTemplateForm = reactive({
+  id: '',
+  name: '',
+  mealType: '午餐',
+  goal: '通用',
+  scene: '通用',
+  targetCalories: 600,
+  description: '',
+  foods: '',
+})
+
+const foodReplacementForm = reactive({
+  id: '',
+  sourceFood: '',
+  replacementFood: '',
+  reason: '',
+  category: '低脂蛋白',
+})
+
+const eatingScenarioForm = reactive({
+  id: '',
+  name: '',
+  goal: '通用',
+  strategy: '',
+  avoid: '',
+  example: '',
+})
+
 const checkinForm = reactive({
   durationMinutes: 35,
   mood: '状态不错',
@@ -264,9 +325,12 @@ const dietTypes = ['均衡饮食', '高蛋白', '低脂', '素食友好', '控�
 const budgetLevels = ['经济', '中等', '充足']
 const eatingOutFrequencies = ['很少外食', '偶尔外食', '经常外食']
 const tastePreferences = ['清淡', '家常', '偏辣', '偏甜', '少油少盐']
+const foodCategories = ['低脂蛋白', '高蛋白主食', '蔬菜', '水果', '饮品']
+const mealTypes = ['早餐', '午餐', '晚餐', '加餐', '训练前后']
+const eatingScenes = ['通用', '食堂', '便利店', '外卖', '家庭做饭']
 
 const userViewKeys = new Set(['overview', 'profile', 'fitness', 'plan', 'guide', 'checkin', 'insights', 'nutrition', 'notices', 'articles', 'articleDetail', 'noticeDetail'])
-const adminViewKeys = new Set(['contentAdmin', 'guideAdmin', 'admin', 'articleDetail', 'noticeDetail'])
+const adminViewKeys = new Set(['contentAdmin', 'guideAdmin', 'nutritionAdmin', 'admin', 'articleDetail', 'noticeDetail'])
 
 const navGroups = computed(() => {
   if (isAdmin.value) {
@@ -276,6 +340,7 @@ const navGroups = computed(() => {
         items: [
           { key: 'contentAdmin', label: '内容管理', icon: Setting },
           { key: 'guideAdmin', label: '动作库管理', icon: Guide },
+          { key: 'nutritionAdmin', label: '饮食模板', icon: Food },
           { key: 'admin', label: '用户管理', icon: Management },
         ],
       },
@@ -294,7 +359,6 @@ const navGroups = computed(() => {
     {
       title: '训练',
       items: [
-        { key: 'profile', label: '个人资料', icon: User },
         { key: 'fitness', label: '健身需求', icon: Aim },
         { key: 'plan', label: '训练计划', icon: TrendCharts },
         { key: 'guide', label: '动作指导', icon: Guide },
@@ -506,6 +570,61 @@ const suggestedGuides = computed(() => {
     })
     .slice(0, 4)
 })
+const adminQualityCards = computed(() => {
+  const users = adminUsers.value || []
+  const guides = guideLibrary.value || []
+  const missingImage = guides.filter((item) => !item.imageurl).length
+  const incomplete = guides.filter((item) => item.incomplete || Number(item.qualityScore || 0) < 85).length
+  const avgQuality = guides.length
+    ? Math.round(guides.reduce((sum, item) => sum + Number(item.qualityScore || 0), 0) / guides.length)
+    : 0
+  return [
+    { label: '待审核用户', value: users.filter((item) => !item.registered).length, unit: '人', tone: 'orange' },
+    { label: '动作完整度', value: avgQuality, unit: '%', tone: 'green' },
+    { label: '待补图片', value: missingImage, unit: '项', tone: 'blue' },
+    { label: '待补字段', value: incomplete, unit: '项', tone: 'ink' },
+  ]
+})
+const nutritionAdminCounts = computed(() => ({
+  templates: nutritionAdminLibrary.value?.mealTemplates?.length || 0,
+  foods: nutritionAdminLibrary.value?.foodItems?.length || 0,
+  replacements: nutritionAdminLibrary.value?.foodReplacements?.length || 0,
+  scenarios: nutritionAdminLibrary.value?.eatingScenarios?.length || 0,
+}))
+const uniqueCompact = (items = [], limit = 8) => {
+  const seen = new Set()
+  return items
+    .map((item) => String(item || '').trim())
+    .filter((item) => {
+      if (!item || seen.has(item)) return false
+      seen.add(item)
+      return true
+    })
+    .slice(0, limit)
+}
+const compactMealPlan = computed(() => {
+  const templates = nutrition.value?.mealTemplates || []
+  if (templates.length) return uniqueCompact(templates, 5)
+  return uniqueCompact([
+    ...(nutrition.value?.trainingDayMeals || []),
+    ...(nutrition.value?.restDayMeals || []),
+  ], 5)
+})
+const compactFoodPlan = computed(() => uniqueCompact([
+  ...(nutrition.value?.foodChoices || []),
+  ...(nutrition.value?.shoppingList || []),
+], 6))
+const compactReplacements = computed(() => {
+  const managed = nutrition.value?.foodReplacements || []
+  if (managed.length) return uniqueCompact(managed, 6)
+  return uniqueCompact(nutrition.value?.replacements || [], 6)
+})
+const compactScenarioTips = computed(() => uniqueCompact(nutrition.value?.eatingScenarios || [], 4))
+const compactNutritionNotes = computed(() => uniqueCompact([
+  ...(nutrition.value?.mealTiming || []),
+  ...(nutrition.value?.tips || []),
+  ...(nutrition.value?.watchouts || []),
+], 7))
 
 const ensureToken = () => {
   if (!getToken()) {
@@ -664,12 +783,16 @@ const loadMyArticles = async () => {
 const loadPlan = async (day = selectedDay.value) => {
   if (!profile.value) return
   selectedDay.value = day
-  const [mode, tasks] = await Promise.all([
+  const [mode, tasks, cycle, adjustments] = await Promise.all([
     getSplitMode(day),
     getActionTasks(day),
+    getTrainingCycle(),
+    getPlanAdjustments(),
   ])
   splitMode.value = mode
   actionTasks.value = tasks || []
+  trainingCycle.value = cycle
+  planAdjustments.value = adjustments || []
   await Promise.allSettled([loadPlanTaskRecords(day), loadPlanInsight()])
 }
 
@@ -697,6 +820,46 @@ const loadPlanTaskRecords = async (day = selectedDay.value) => {
 
 const loadPlanInsight = async () => {
   planInsight.value = await getTrainingPlanInsight()
+  if (planInsight.value?.adjustmentHistory) {
+    planAdjustments.value = planInsight.value.adjustmentHistory
+  }
+}
+
+const replaceTaskWithGuide = async (index, guide = null) => {
+  const current = actionTasks.value[index]
+  if (!current) return
+  try {
+    const replacement = guide || await replacePlanAction({
+      actionPattern: current.actionPattern,
+      preferredEquipment: profile.value?.equipment || current.equipment,
+      currentGuideId: current.id,
+    })
+    actionTasks.value = actionTasks.value.map((task, taskIndex) => {
+      if (taskIndex !== index) return task
+      return {
+        ...task,
+        actionName: replacement.actionName || replacement.actionPattern,
+        equipment: replacement.equipment || task.equipment,
+        guideDescription: replacement.description || task.guideDescription,
+        description: replacement.description || task.description,
+        steps: replacement.steps || task.steps,
+        tips: replacement.tips || task.tips,
+        imageurl: replacement.imageurl || '',
+        imageCredit: replacement.imageCredit || '',
+        imageSourceUrl: replacement.imageSourceUrl || '',
+        primaryMuscles: replacement.primaryMuscles || task.primaryMuscles,
+        secondaryMuscles: replacement.secondaryMuscles || task.secondaryMuscles,
+        difficulty: replacement.difficulty || task.difficulty,
+        contraindications: replacement.contraindications || task.contraindications,
+        commonMistakes: replacement.commonMistakes || task.commonMistakes,
+        suitableFor: replacement.suitableFor || task.suitableFor,
+        alternatives: replacement.alternatives || task.alternatives,
+      }
+    })
+    ElMessage.success('已替换为同动作模式的可选动作')
+  } catch (error) {
+    ElMessage.error(error.message || '暂无可替换动作')
+  }
 }
 
 const loadGuide = async () => {
@@ -725,6 +888,7 @@ const clearGuideFilters = async () => {
     missingStepsOnly: false,
     missingTipsOnly: false,
     missingMistakesOnly: false,
+    missingAlternativesOnly: false,
   })
   await loadGuideLibrary()
 }
@@ -881,8 +1045,12 @@ const loadCheckin = async () => {
 }
 
 const loadNutrition = async () => {
-  nutrition.value = await getNutritionRecommendation()
-  nutritionHistory.value = await getNutritionHistory()
+  const [recommendation, library] = await Promise.all([
+    getNutritionRecommendation(),
+    getNutritionLibrary(),
+  ])
+  nutrition.value = recommendation
+  nutritionLibrary.value = library
 }
 
 const loadNutritionPreference = async () => {
@@ -895,6 +1063,10 @@ const loadNutritionPreference = async () => {
     mealCount: preference?.mealCount || 4,
     tastePreference: preference?.tastePreference || '清淡',
   })
+}
+
+const loadNutritionAdmin = async () => {
+  nutritionAdminLibrary.value = await getAdminNutritionLibrary()
 }
 
 const loadArticleDetail = async (id) => {
@@ -935,6 +1107,7 @@ const bootstrap = async () => {
         loadMyArticles(),
         loadUsers(),
         loadGuideLibrary(),
+        loadNutritionAdmin(),
       ])
       await syncRouteDetail()
       return
@@ -980,6 +1153,7 @@ const openView = async (key) => {
     if (key === 'admin') await loadUsers()
     if (key === 'contentAdmin') await Promise.all([loadArticles(), loadNotices(), loadMyArticles()])
     if (key === 'guideAdmin') await loadGuideLibrary()
+    if (key === 'nutritionAdmin') await loadNutritionAdmin()
     if (key === 'notices') await loadNotices()
     if (key === 'articles') await loadArticles()
     if (key === 'plan') await loadPlan(selectedDay.value || 1)
@@ -990,6 +1164,10 @@ const openView = async (key) => {
   } catch (error) {
     ElMessage.error(error.message || '加载失败')
   }
+}
+
+const openIdentityEntry = async () => {
+  await openView(isAdmin.value ? 'admin' : 'profile')
 }
 
 const saveProfile = async () => {
@@ -1265,6 +1443,147 @@ const saveNutritionPreference = async () => {
   }
 }
 
+const resetFoodItemForm = () => {
+  Object.assign(foodItemForm, {
+    id: '',
+    name: '',
+    category: '低脂蛋白',
+    caloriesPer100g: 100,
+    proteinPer100g: 10,
+    carbohydratePer100g: 0,
+    fatPer100g: 1,
+    tags: '',
+    scene: '通用',
+  })
+}
+
+const resetMealTemplateForm = () => {
+  Object.assign(mealTemplateForm, {
+    id: '',
+    name: '',
+    mealType: '午餐',
+    goal: '通用',
+    scene: '通用',
+    targetCalories: 600,
+    description: '',
+    foods: '',
+  })
+}
+
+const resetFoodReplacementForm = () => {
+  Object.assign(foodReplacementForm, {
+    id: '',
+    sourceFood: '',
+    replacementFood: '',
+    reason: '',
+    category: '低脂蛋白',
+  })
+}
+
+const resetEatingScenarioForm = () => {
+  Object.assign(eatingScenarioForm, {
+    id: '',
+    name: '',
+    goal: '通用',
+    strategy: '',
+    avoid: '',
+    example: '',
+  })
+}
+
+const editFoodItem = (item) => Object.assign(foodItemForm, { ...item })
+const editMealTemplate = (item) => Object.assign(mealTemplateForm, { ...item })
+const editFoodReplacement = (item) => Object.assign(foodReplacementForm, { ...item })
+const editEatingScenario = (item) => Object.assign(eatingScenarioForm, { ...item })
+
+const saveFoodItem = async () => {
+  try {
+    if (foodItemForm.id) await updateFoodItem(foodItemForm)
+    else await addFoodItem(foodItemForm)
+    ElMessage.success('食材已保存')
+    resetFoodItemForm()
+    await loadNutritionAdmin()
+  } catch (error) {
+    ElMessage.error(error.message || '食材保存失败')
+  }
+}
+
+const saveMealTemplate = async () => {
+  try {
+    if (mealTemplateForm.id) await updateMealTemplate(mealTemplateForm)
+    else await addMealTemplate(mealTemplateForm)
+    ElMessage.success('餐单模板已保存')
+    resetMealTemplateForm()
+    await loadNutritionAdmin()
+  } catch (error) {
+    ElMessage.error(error.message || '餐单模板保存失败')
+  }
+}
+
+const saveFoodReplacement = async () => {
+  try {
+    if (foodReplacementForm.id) await updateFoodReplacement(foodReplacementForm)
+    else await addFoodReplacement(foodReplacementForm)
+    ElMessage.success('替换规则已保存')
+    resetFoodReplacementForm()
+    await loadNutritionAdmin()
+  } catch (error) {
+    ElMessage.error(error.message || '替换规则保存失败')
+  }
+}
+
+const saveEatingScenario = async () => {
+  try {
+    if (eatingScenarioForm.id) await updateEatingScenario(eatingScenarioForm)
+    else await addEatingScenario(eatingScenarioForm)
+    ElMessage.success('饮食场景已保存')
+    resetEatingScenarioForm()
+    await loadNutritionAdmin()
+  } catch (error) {
+    ElMessage.error(error.message || '饮食场景保存失败')
+  }
+}
+
+const removeFoodItem = async (item) => {
+  try {
+    await ElMessageBox.confirm(`确认删除食材「${item.name}」？`, '删除确认', { type: 'warning' })
+    await deleteFoodItem(item.id)
+    await loadNutritionAdmin()
+  } catch (error) {
+    if (error !== 'cancel') ElMessage.error(error.message || '删除失败')
+  }
+}
+
+const removeMealTemplate = async (item) => {
+  try {
+    await ElMessageBox.confirm(`确认删除餐单「${item.name}」？`, '删除确认', { type: 'warning' })
+    await deleteMealTemplate(item.id)
+    await loadNutritionAdmin()
+  } catch (error) {
+    if (error !== 'cancel') ElMessage.error(error.message || '删除失败')
+  }
+}
+
+const removeFoodReplacement = async (item) => {
+  try {
+    await ElMessageBox.confirm(`确认删除「${item.sourceFood}」替换规则？`, '删除确认', { type: 'warning' })
+    await deleteFoodReplacement(item.id)
+    await loadNutritionAdmin()
+  } catch (error) {
+    if (error !== 'cancel') ElMessage.error(error.message || '删除失败')
+  }
+}
+
+const removeEatingScenario = async (item) => {
+  try {
+    await ElMessageBox.confirm(`确认删除场景「${item.name}」？`, '删除确认', { type: 'warning' })
+    await deleteEatingScenario(item.id)
+    await loadNutritionAdmin()
+  } catch (error) {
+    if (error !== 'cancel') ElMessage.error(error.message || '删除失败')
+  }
+}
+
 const savePlanCheckin = async () => {
   const lockedDay = firstLockedPlanDay(selectedDay.value)
   if (lockedDay) {
@@ -1314,7 +1633,12 @@ onMounted(() => {
     />
 
     <main class="main">
-      <PageHeader :is-admin="isAdmin" :greeting-name="greetingName" @logout="logout" />
+      <PageHeader
+        :is-admin="isAdmin"
+        :greeting-name="greetingName"
+        @open-profile="openIdentityEntry"
+        @logout="logout"
+      />
 
       <UserDashboard v-if="!isAdmin || activeView === 'noticeDetail' || activeView === 'articleDetail'">
       <section v-if="activeView === 'overview'" class="content-stack overview-stack">
@@ -1613,40 +1937,70 @@ onMounted(() => {
             </div>
             <el-button type="primary" :icon="Check" :disabled="!!selectedPlanLockedDay" @click="savePlanCheckin">按完成情况打卡</el-button>
           </div>
-          <div class="plan-insight-grid" v-if="planInsight">
+          <div class="cycle-grid" v-if="trainingCycle || planInsight">
             <article>
-              <span>本周动作完成率</span>
-              <strong>{{ planInsight.completionRate || 0 }}%</strong>
-              <p>{{ planInsight.completedTasks || 0 }}/{{ planInsight.recordedTasks || 0 }} 个动作已记录完成</p>
+              <span>当前周期</span>
+              <strong>第 {{ planInsight?.cycleWeek || trainingCycle?.cycleWeek || 1 }} 周</strong>
+              <p>{{ planInsight?.stage || trainingCycle?.stage || '基础适应期' }}</p>
             </article>
             <article>
-              <span>调整建议</span>
-              <strong>{{ planInsight.nextAdjustment || '保持当前计划' }}</strong>
-              <p>{{ planInsight.recommendation }}</p>
+              <span>周期目标</span>
+              <strong>{{ trainingCycle?.status === 'active' ? '进行中' : '未开始' }}</strong>
+              <p>{{ planInsight?.cycleGoal || trainingCycle?.cycleGoal || '保持每周训练节奏并记录动作质量。' }}</p>
             </article>
             <article>
-              <span>恢复提醒</span>
-              <strong>连续 {{ planInsight.currentStreak || 0 }} 天</strong>
-              <p>{{ planInsight.recoveryHint }}</p>
-            </article>
-          </div>
-          <div class="plan-coach-strip">
-            <article>
-              <span>今日重点</span>
-              <strong>{{ splitMode || '基础训练' }}</strong>
-              <p>先保证动作质量，再追求组数、次数或保持时间。</p>
-            </article>
-            <article>
-              <span>节奏建议</span>
-              <strong>{{ estimatedMinutes || 30 }} 分钟</strong>
-              <p>每组之间按计划休息，动作变形时主动降级。</p>
-            </article>
-            <article>
-              <span>结束标准</span>
-              <strong>{{ completedTaskCount }}/{{ actionTasks.length }}</strong>
-              <p>勾选完成动作后可直接生成今日打卡记录。</p>
+              <span>恢复安排</span>
+              <strong>第 {{ planInsight?.recoveryDay || trainingCycle?.recoveryDay || 4 }} 天</strong>
+              <p>恢复日优先做低强度活动、拉伸和睡眠补足。</p>
             </article>
           </div>
+          <details class="detail-disclosure plan-secondary">
+            <summary>
+              <span>计划反馈与执行建议</span>
+              <strong>{{ planInsight?.nextAdjustment || '查看本周反馈' }}</strong>
+            </summary>
+            <div class="plan-insight-grid" v-if="planInsight">
+              <article>
+                <span>本周动作完成率</span>
+                <strong>{{ planInsight.completionRate || 0 }}%</strong>
+                <p>{{ planInsight.completedTasks || 0 }}/{{ planInsight.recordedTasks || 0 }} 个动作已记录完成</p>
+              </article>
+              <article>
+                <span>调整建议</span>
+                <strong>{{ planInsight.nextAdjustment || '保持当前计划' }}</strong>
+                <p>{{ planInsight.recommendation }}</p>
+              </article>
+              <article>
+                <span>恢复提醒</span>
+                <strong>连续 {{ planInsight.currentStreak || 0 }} 天</strong>
+                <p>{{ planInsight.recoveryHint }}</p>
+              </article>
+            </div>
+            <div class="plan-coach-strip">
+              <article>
+                <span>今日重点</span>
+                <strong>{{ splitMode || '基础训练' }}</strong>
+                <p>先保证动作质量，再追求组数、次数或保持时间。</p>
+              </article>
+              <article>
+                <span>节奏建议</span>
+                <strong>{{ estimatedMinutes || 30 }} 分钟</strong>
+                <p>每组之间按计划休息，动作变形时主动降级。</p>
+              </article>
+              <article>
+                <span>结束标准</span>
+                <strong>{{ completedTaskCount }}/{{ actionTasks.length }}</strong>
+                <p>勾选完成动作后可直接生成今日打卡记录。</p>
+              </article>
+            </div>
+            <div class="adjustment-list" v-if="planAdjustments.length">
+              <article v-for="item in planAdjustments" :key="item.id">
+                <span>{{ item.adjustmentType || '计划调整' }}</span>
+                <strong>{{ item.reason }}</strong>
+                <p>{{ item.summary }}</p>
+              </article>
+            </div>
+          </details>
           <div class="task-grid">
             <article
               v-for="(task, index) in actionTasks"
@@ -1674,43 +2028,61 @@ onMounted(() => {
                   <strong>休息 {{ task.minRestSeconds }}-{{ task.maxRestSeconds }} 秒</strong>
                 </div>
                 <p>{{ task.guideDescription || task.description }}</p>
-                <p v-if="task.planReason" class="task-coach-note">{{ task.planReason }}</p>
-                <p v-if="task.trainingFocus" class="task-coach-note">{{ task.trainingFocus }}</p>
-                <p v-if="task.progressionAdvice" class="task-coach-note">{{ task.progressionAdvice }}</p>
-                <div class="guide-columns">
-                  <div>
-                    <h4>执行步骤</h4>
-                    <ol>
-                      <li v-for="step in splitGuideText(task.steps)" :key="step">{{ step }}</li>
-                    </ol>
+                <details class="detail-disclosure task-secondary">
+                  <summary>
+                    <span>动作细节</span>
+                    <strong>{{ task.primaryMuscles || task.trainingFocus || '步骤、要点和风险提示' }}</strong>
+                  </summary>
+                  <p v-if="task.planReason" class="task-coach-note">{{ task.planReason }}</p>
+                  <p v-if="task.trainingFocus" class="task-coach-note">{{ task.trainingFocus }}</p>
+                  <p v-if="task.progressionAdvice" class="task-coach-note">{{ task.progressionAdvice }}</p>
+                  <div class="guide-columns">
+                    <div>
+                      <h4>执行步骤</h4>
+                      <ol>
+                        <li v-for="step in splitGuideText(task.steps)" :key="step">{{ step }}</li>
+                      </ol>
+                    </div>
+                    <div>
+                      <h4>训练要点</h4>
+                      <ul>
+                        <li v-for="tip in splitGuideText(task.tips)" :key="tip">{{ tip }}</li>
+                      </ul>
+                    </div>
                   </div>
-                  <div>
-                    <h4>训练要点</h4>
-                    <ul>
-                      <li v-for="tip in splitGuideText(task.tips)" :key="tip">{{ tip }}</li>
-                    </ul>
+                  <div class="guide-quality-grid" v-if="task.primaryMuscles || task.commonMistakes || task.contraindications || task.suitableFor">
+                    <article v-if="task.primaryMuscles">
+                      <span>主肌群</span>
+                      <p>{{ task.primaryMuscles }}<template v-if="task.secondaryMuscles"> · 辅助：{{ task.secondaryMuscles }}</template></p>
+                    </article>
+                    <article v-if="task.commonMistakes">
+                      <span>常见错误</span>
+                      <p>{{ task.commonMistakes }}</p>
+                    </article>
+                    <article v-if="task.contraindications">
+                      <span>注意禁忌</span>
+                      <p>{{ task.contraindications }}</p>
+                    </article>
+                    <article v-if="task.suitableFor">
+                      <span>适合人群</span>
+                      <p>{{ task.suitableFor }}</p>
+                    </article>
                   </div>
-                </div>
-                <div class="guide-quality-grid" v-if="task.primaryMuscles || task.commonMistakes || task.contraindications || task.suitableFor">
-                  <article v-if="task.primaryMuscles">
-                    <span>主肌群</span>
-                    <p>{{ task.primaryMuscles }}<template v-if="task.secondaryMuscles"> · 辅助：{{ task.secondaryMuscles }}</template></p>
-                  </article>
-                  <article v-if="task.commonMistakes">
-                    <span>常见错误</span>
-                    <p>{{ task.commonMistakes }}</p>
-                  </article>
-                  <article v-if="task.contraindications">
-                    <span>注意禁忌</span>
-                    <p>{{ task.contraindications }}</p>
-                  </article>
-                  <article v-if="task.suitableFor">
-                    <span>适合人群</span>
-                    <p>{{ task.suitableFor }}</p>
-                  </article>
-                </div>
-                <p v-if="task.alternative" class="task-alternative">{{ task.alternative }}</p>
-                <p v-if="task.alternatives" class="task-alternative">动作库替代：{{ task.alternatives }}</p>
+                  <p v-if="task.alternative" class="task-alternative">{{ task.alternative }}</p>
+                  <p v-if="task.alternatives" class="task-alternative">动作库替代：{{ task.alternatives }}</p>
+                  <div class="replacement-actions" v-if="task.alternativeGuides?.length">
+                    <span>可替换为</span>
+                    <el-button
+                      v-for="guide in task.alternativeGuides"
+                      :key="`${guide.id}-${guide.actionName}`"
+                      size="small"
+                      plain
+                      @click="replaceTaskWithGuide(index, guide)"
+                    >
+                      {{ guide.actionName || guide.actionPattern }} · {{ guide.equipment }}
+                    </el-button>
+                  </div>
+                </details>
               </div>
             </article>
             <el-empty v-if="!actionTasks.length" description="暂无训练动作，请先完善健身需求" />
@@ -1806,6 +2178,7 @@ onMounted(() => {
             <label class="checkbox-field"><span>步骤</span><el-checkbox v-model="guideFilters.missingStepsOnly">缺步骤</el-checkbox></label>
             <label class="checkbox-field"><span>要点</span><el-checkbox v-model="guideFilters.missingTipsOnly">缺要点</el-checkbox></label>
             <label class="checkbox-field"><span>错误提示</span><el-checkbox v-model="guideFilters.missingMistakesOnly">缺常见错误</el-checkbox></label>
+            <label class="checkbox-field"><span>替代动作</span><el-checkbox v-model="guideFilters.missingAlternativesOnly">缺替代动作</el-checkbox></label>
             <div class="field-action">
               <el-button type="primary" :icon="Search" :loading="guideLibraryLoading" @click="loadGuideLibrary">筛选</el-button>
               <el-button @click="clearGuideFilters">重置</el-button>
@@ -1951,60 +2324,47 @@ onMounted(() => {
             <p class="training-day-tip">{{ nutrition?.trainingDayTip }}</p>
             <p class="training-day-tip rest">{{ nutrition?.restDayTip }}</p>
           </div>
-          <div class="two-column">
+          <details class="detail-disclosure nutrition-secondary" open>
+            <summary>
+              <span>推荐餐单</span>
+              <strong>{{ compactMealPlan.length }} 条可执行模板</strong>
+            </summary>
             <div class="reader-box">
-              <h3>训练日模板</h3>
-              <ul class="clean-list"><li v-for="item in nutrition?.trainingDayMeals || []" :key="item">{{ item }}</li></ul>
+              <ul class="clean-list"><li v-for="item in compactMealPlan" :key="item">{{ item }}</li></ul>
             </div>
-            <div class="reader-box">
-              <h3>休息日模板</h3>
-              <ul class="clean-list"><li v-for="item in nutrition?.restDayMeals || []" :key="item">{{ item }}</li></ul>
+          </details>
+          <details class="detail-disclosure nutrition-secondary">
+            <summary>
+              <span>食材与替换</span>
+              <strong>采购重点和同类替换</strong>
+            </summary>
+            <div class="two-column nutrition-detail-grid">
+              <div class="reader-box">
+                <h3>优先食材</h3>
+                <ul class="clean-list"><li v-for="item in compactFoodPlan" :key="item">{{ item }}</li></ul>
+              </div>
+              <div class="reader-box">
+                <h3>替换规则</h3>
+                <ul class="clean-list"><li v-for="item in compactReplacements" :key="item">{{ item }}</li></ul>
+              </div>
             </div>
-          </div>
-          <div class="two-column nutrition-detail-grid">
-            <div class="reader-box">
-              <h3>一日结构</h3>
-              <ul class="clean-list"><li v-for="item in nutrition?.meals || []" :key="item">{{ item }}</li></ul>
+          </details>
+          <details class="detail-disclosure nutrition-secondary">
+            <summary>
+              <span>场景与注意</span>
+              <strong>外食策略、训练前后和风险提醒</strong>
+            </summary>
+            <div class="two-column nutrition-detail-grid">
+              <div class="reader-box" v-if="compactScenarioTips.length">
+                <h3>外食场景</h3>
+                <ul class="clean-list"><li v-for="item in compactScenarioTips" :key="item">{{ item }}</li></ul>
+              </div>
+              <div class="reader-box nutrition-watchouts">
+                <h3>执行提醒</h3>
+                <ul class="clean-list"><li v-for="item in compactNutritionNotes" :key="item">{{ item }}</li></ul>
+              </div>
             </div>
-            <div class="reader-box">
-              <h3>执行提示</h3>
-              <ul class="clean-list"><li v-for="item in nutrition?.tips || []" :key="item">{{ item }}</li></ul>
-            </div>
-          </div>
-          <div class="two-column nutrition-detail-grid">
-            <div class="reader-box">
-              <h3>训练前后</h3>
-              <ul class="clean-list"><li v-for="item in nutrition?.mealTiming || []" :key="item">{{ item }}</li></ul>
-            </div>
-            <div class="reader-box">
-              <h3>食材选择</h3>
-              <ul class="clean-list"><li v-for="item in nutrition?.foodChoices || []" :key="item">{{ item }}</li></ul>
-            </div>
-          </div>
-          <div class="two-column nutrition-detail-grid">
-            <div class="reader-box">
-              <h3>食材替换</h3>
-              <ul class="clean-list"><li v-for="item in nutrition?.replacements || []" :key="item">{{ item }}</li></ul>
-            </div>
-            <div class="reader-box">
-              <h3>采购清单</h3>
-              <ul class="clean-list"><li v-for="item in nutrition?.shoppingList || []" :key="item">{{ item }}</li></ul>
-            </div>
-          </div>
-          <div class="reader-box nutrition-watchouts" v-if="nutrition?.watchouts?.length">
-            <h3>注意事项</h3>
-            <ul class="clean-list"><li v-for="item in nutrition.watchouts" :key="item">{{ item }}</li></ul>
-          </div>
-          <div class="reader-box nutrition-history" v-if="nutritionHistory.length">
-            <h3>最近推荐记录</h3>
-            <div class="history-list">
-              <article v-for="item in nutritionHistory" :key="item.id">
-                <strong>{{ item.targetCalories }} kcal</strong>
-                <span>蛋白 {{ item.proteinGrams }}g · 碳水 {{ item.carbohydrateGrams }}g · 脂肪 {{ item.fatGrams }}g</span>
-                <p>{{ item.preferenceSummary }}</p>
-              </article>
-            </div>
-          </div>
+          </details>
         </div>
 
         <div class="panel">
@@ -2113,6 +2473,16 @@ onMounted(() => {
           <h2>公告与文章发布台</h2>
           <span>这个区域只对管理员开放，普通用户不会看到编辑入口。</span>
         </div>
+        <div class="metric-grid small">
+          <MetricCard
+            v-for="card in adminQualityCards"
+            :key="card.label"
+            :label="card.label"
+            :value="card.value"
+            :unit="card.unit"
+            :tone="card.tone"
+          />
+        </div>
         <el-tabs v-model="contentAdminTab" class="admin-tabs">
           <el-tab-pane label="文章" name="articles">
             <div class="admin-stack">
@@ -2211,6 +2581,7 @@ onMounted(() => {
               <label class="checkbox-field"><span>步骤</span><el-checkbox v-model="guideFilters.missingStepsOnly">缺步骤</el-checkbox></label>
               <label class="checkbox-field"><span>要点</span><el-checkbox v-model="guideFilters.missingTipsOnly">缺要点</el-checkbox></label>
               <label class="checkbox-field"><span>错误提示</span><el-checkbox v-model="guideFilters.missingMistakesOnly">缺常见错误</el-checkbox></label>
+              <label class="checkbox-field"><span>替代动作</span><el-checkbox v-model="guideFilters.missingAlternativesOnly">缺替代动作</el-checkbox></label>
               <div class="field-action">
                 <el-button type="primary" :icon="Search" :loading="guideLibraryLoading" @click="loadGuideLibrary">筛选</el-button>
                 <el-button @click="clearGuideFilters">重置</el-button>
@@ -2221,7 +2592,7 @@ onMounted(() => {
                 <div>
                   <span>{{ item.actionPattern }} · {{ item.equipment }}</span>
                   <strong>{{ item.actionName || item.actionPattern }}</strong>
-                  <small>{{ item.imageurl ? '已上传图片' : '未上传图片' }} · {{ item.difficulty || '未标难度' }} · {{ item.primaryMuscles || '未标肌群' }} · {{ excerpt(item.description, 48) }}</small>
+                  <small>{{ item.imageurl ? '已上传图片' : '未上传图片' }} · 完整度 {{ item.qualityScore || 0 }}% · {{ item.difficulty || '未标难度' }} · {{ item.primaryMuscles || '未标肌群' }} · {{ excerpt(item.description, 48) }}</small>
                 </div>
                 <div class="icon-actions">
                   <el-button :icon="Edit" circle @click="openGuideAdminEdit(item)" />
@@ -2277,6 +2648,146 @@ onMounted(() => {
             </div>
           </section>
         </div>
+      </section>
+
+      <section v-if="activeView === 'nutritionAdmin'" class="content-stack">
+        <div class="page-intro admin-intro">
+          <p>饮食模板</p>
+          <h2>维护食材、餐单、替换规则和外食场景</h2>
+          <span>普通用户的饮食建议会读取这里的模板数据。</span>
+        </div>
+        <div class="metric-grid small">
+          <MetricCard label="餐单模板" :value="nutritionAdminCounts.templates" unit="条" tone="green" />
+          <MetricCard label="食材" :value="nutritionAdminCounts.foods" unit="项" tone="orange" />
+          <MetricCard label="替换规则" :value="nutritionAdminCounts.replacements" unit="条" tone="blue" />
+          <MetricCard label="饮食场景" :value="nutritionAdminCounts.scenarios" unit="类" tone="ink" />
+        </div>
+        <el-tabs v-model="nutritionAdminTab" class="admin-tabs">
+          <el-tab-pane label="餐单模板" name="templates">
+            <div class="admin-stack">
+              <section class="panel">
+                <div class="panel-heading"><div><p>餐单库</p><h2>训练日、休息日和外食模板</h2></div><el-button :icon="Refresh" @click="loadNutritionAdmin">刷新</el-button></div>
+                <div class="admin-list">
+                  <article v-for="item in nutritionAdminLibrary?.mealTemplates || []" :key="item.id">
+                    <div>
+                      <span>{{ item.goal }} · {{ item.scene }} · {{ item.mealType }}</span>
+                      <strong>{{ item.name }}</strong>
+                      <small>{{ item.targetCalories || 0 }} kcal · {{ excerpt(item.foods, 70) }}</small>
+                    </div>
+                    <div class="icon-actions">
+                      <el-button :icon="Edit" circle @click="editMealTemplate(item)" />
+                      <el-button :icon="DeleteIcon" circle type="danger" @click="removeMealTemplate(item)" />
+                    </div>
+                  </article>
+                </div>
+              </section>
+              <section class="panel">
+                <div class="panel-heading"><div><p>{{ mealTemplateForm.id ? '编辑餐单' : '新增餐单' }}</p><h2>餐单模板表单</h2></div><div class="button-row"><el-button @click="resetMealTemplateForm">重置</el-button><el-button type="primary" :icon="Check" @click="saveMealTemplate">保存</el-button></div></div>
+                <div class="form-grid">
+                  <label><span>名称</span><el-input v-model="mealTemplateForm.name" /></label>
+                  <label><span>餐次</span><el-select v-model="mealTemplateForm.mealType"><el-option v-for="item in mealTypes" :key="item" :label="item" :value="item" /></el-select></label>
+                  <label><span>目标</span><el-select v-model="mealTemplateForm.goal"><el-option label="通用" value="通用" /><el-option v-for="item in fitnessGoals" :key="item" :label="item" :value="item" /></el-select></label>
+                  <label><span>场景</span><el-select v-model="mealTemplateForm.scene"><el-option v-for="item in eatingScenes" :key="item" :label="item" :value="item" /></el-select></label>
+                  <label><span>热量</span><el-input-number v-model="mealTemplateForm.targetCalories" :min="0" :max="1600" /></label>
+                  <label class="wide"><span>描述</span><el-input v-model="mealTemplateForm.description" type="textarea" :rows="3" /></label>
+                  <label class="wide"><span>食物组合</span><el-input v-model="mealTemplateForm.foods" type="textarea" :rows="3" /></label>
+                </div>
+              </section>
+            </div>
+          </el-tab-pane>
+          <el-tab-pane label="食材" name="foods">
+            <div class="admin-stack">
+              <section class="panel">
+                <div class="panel-heading"><div><p>食材库</p><h2>宏量营养基础数据</h2></div><el-button :icon="Refresh" @click="loadNutritionAdmin">刷新</el-button></div>
+                <div class="admin-list">
+                  <article v-for="item in nutritionAdminLibrary?.foodItems || []" :key="item.id">
+                    <div>
+                      <span>{{ item.category }} · {{ item.scene || '通用' }}</span>
+                      <strong>{{ item.name }}</strong>
+                      <small>{{ item.caloriesPer100g || 0 }} kcal/100g · 蛋白 {{ item.proteinPer100g || 0 }}g · {{ item.tags || '无标签' }}</small>
+                    </div>
+                    <div class="icon-actions">
+                      <el-button :icon="Edit" circle @click="editFoodItem(item)" />
+                      <el-button :icon="DeleteIcon" circle type="danger" @click="removeFoodItem(item)" />
+                    </div>
+                  </article>
+                </div>
+              </section>
+              <section class="panel">
+                <div class="panel-heading"><div><p>{{ foodItemForm.id ? '编辑食材' : '新增食材' }}</p><h2>食材表单</h2></div><div class="button-row"><el-button @click="resetFoodItemForm">重置</el-button><el-button type="primary" :icon="Check" @click="saveFoodItem">保存</el-button></div></div>
+                <div class="form-grid">
+                  <label><span>名称</span><el-input v-model="foodItemForm.name" /></label>
+                  <label><span>分类</span><el-select v-model="foodItemForm.category"><el-option v-for="item in foodCategories" :key="item" :label="item" :value="item" /></el-select></label>
+                  <label><span>场景</span><el-select v-model="foodItemForm.scene"><el-option v-for="item in eatingScenes" :key="item" :label="item" :value="item" /></el-select></label>
+                  <label><span>热量/100g</span><el-input-number v-model="foodItemForm.caloriesPer100g" :min="0" :max="900" /></label>
+                  <label><span>蛋白/100g</span><el-input-number v-model="foodItemForm.proteinPer100g" :min="0" :max="100" :precision="1" /></label>
+                  <label><span>碳水/100g</span><el-input-number v-model="foodItemForm.carbohydratePer100g" :min="0" :max="100" :precision="1" /></label>
+                  <label><span>脂肪/100g</span><el-input-number v-model="foodItemForm.fatPer100g" :min="0" :max="100" :precision="1" /></label>
+                  <label class="wide"><span>标签</span><el-input v-model="foodItemForm.tags" placeholder="用逗号分隔" /></label>
+                </div>
+              </section>
+            </div>
+          </el-tab-pane>
+          <el-tab-pane label="替换规则" name="replacements">
+            <div class="admin-stack">
+              <section class="panel">
+                <div class="panel-heading"><div><p>替换规则</p><h2>同类食物替换</h2></div><el-button :icon="Refresh" @click="loadNutritionAdmin">刷新</el-button></div>
+                <div class="admin-list">
+                  <article v-for="item in nutritionAdminLibrary?.foodReplacements || []" :key="item.id">
+                    <div>
+                      <span>{{ item.category || '通用' }}</span>
+                      <strong>{{ item.sourceFood }} → {{ item.replacementFood }}</strong>
+                      <small>{{ item.reason }}</small>
+                    </div>
+                    <div class="icon-actions">
+                      <el-button :icon="Edit" circle @click="editFoodReplacement(item)" />
+                      <el-button :icon="DeleteIcon" circle type="danger" @click="removeFoodReplacement(item)" />
+                    </div>
+                  </article>
+                </div>
+              </section>
+              <section class="panel">
+                <div class="panel-heading"><div><p>{{ foodReplacementForm.id ? '编辑规则' : '新增规则' }}</p><h2>替换规则表单</h2></div><div class="button-row"><el-button @click="resetFoodReplacementForm">重置</el-button><el-button type="primary" :icon="Check" @click="saveFoodReplacement">保存</el-button></div></div>
+                <div class="form-grid">
+                  <label><span>原食物</span><el-input v-model="foodReplacementForm.sourceFood" /></label>
+                  <label><span>替换食物</span><el-input v-model="foodReplacementForm.replacementFood" /></label>
+                  <label><span>分类</span><el-select v-model="foodReplacementForm.category"><el-option v-for="item in foodCategories" :key="item" :label="item" :value="item" /></el-select></label>
+                  <label class="wide"><span>替换理由</span><el-input v-model="foodReplacementForm.reason" type="textarea" :rows="3" /></label>
+                </div>
+              </section>
+            </div>
+          </el-tab-pane>
+          <el-tab-pane label="外食场景" name="scenarios">
+            <div class="admin-stack">
+              <section class="panel">
+                <div class="panel-heading"><div><p>场景库</p><h2>食堂、便利店、外卖和家庭做饭</h2></div><el-button :icon="Refresh" @click="loadNutritionAdmin">刷新</el-button></div>
+                <div class="admin-list">
+                  <article v-for="item in nutritionAdminLibrary?.eatingScenarios || []" :key="item.id">
+                    <div>
+                      <span>{{ item.goal }} · {{ item.name }}</span>
+                      <strong>{{ item.strategy }}</strong>
+                      <small>少选：{{ item.avoid }} · 示例：{{ item.example }}</small>
+                    </div>
+                    <div class="icon-actions">
+                      <el-button :icon="Edit" circle @click="editEatingScenario(item)" />
+                      <el-button :icon="DeleteIcon" circle type="danger" @click="removeEatingScenario(item)" />
+                    </div>
+                  </article>
+                </div>
+              </section>
+              <section class="panel">
+                <div class="panel-heading"><div><p>{{ eatingScenarioForm.id ? '编辑场景' : '新增场景' }}</p><h2>外食场景表单</h2></div><div class="button-row"><el-button @click="resetEatingScenarioForm">重置</el-button><el-button type="primary" :icon="Check" @click="saveEatingScenario">保存</el-button></div></div>
+                <div class="form-grid">
+                  <label><span>场景名称</span><el-select v-model="eatingScenarioForm.name" filterable allow-create><el-option v-for="item in eatingScenes.slice(1)" :key="item" :label="item" :value="item" /></el-select></label>
+                  <label><span>目标</span><el-select v-model="eatingScenarioForm.goal"><el-option label="通用" value="通用" /><el-option v-for="item in fitnessGoals" :key="item" :label="item" :value="item" /></el-select></label>
+                  <label class="wide"><span>策略</span><el-input v-model="eatingScenarioForm.strategy" type="textarea" :rows="3" /></label>
+                  <label class="wide"><span>少选内容</span><el-input v-model="eatingScenarioForm.avoid" type="textarea" :rows="3" /></label>
+                  <label class="wide"><span>示例组合</span><el-input v-model="eatingScenarioForm.example" type="textarea" :rows="3" /></label>
+                </div>
+              </section>
+            </div>
+          </el-tab-pane>
+        </el-tabs>
       </section>
 
       <section v-if="activeView === 'admin'" class="content-stack">
@@ -2387,28 +2898,58 @@ onMounted(() => {
 
 <style scoped>
 .workspace-shell {
+  position: relative;
+  isolation: isolate;
   min-height: 100vh;
   width: 100%;
-  display: grid;
-  grid-template-columns: 280px minmax(0, 1fr);
+  display: block;
+  padding-left: 280px;
   background:
-    linear-gradient(135deg, #f7f8f1 0%, #eef5ef 42%, #f7f2e6 100%);
-  color: #18221d;
+    linear-gradient(135deg, #fffaf4 0%, #fff2e3 48%, #f7e4d2 100%);
+  color: #2b211c;
+  overflow-x: hidden;
+}
+
+.workspace-shell::before {
+  content: "";
+  position: fixed;
+  right: clamp(-140px, -8vw, -56px);
+  bottom: clamp(-130px, -10vw, -64px);
+  z-index: 0;
+  width: min(48vw, 620px);
+  min-width: 320px;
+  aspect-ratio: 2 / 3;
+  background: url('./assets/yuelu-logo.png') center / contain no-repeat;
+  opacity: 0.12;
+  pointer-events: none;
+}
+
+.workspace-shell > :deep(.sidebar) {
+  z-index: 30;
+}
+
+.main {
+  position: relative;
+  z-index: 1;
 }
 
 .sidebar {
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
+  z-index: 30;
+  width: 280px;
   height: 100vh;
   padding: 24px;
   background:
-    linear-gradient(150deg, rgba(16, 42, 40, 0.96), rgba(21, 77, 67, 0.96)),
-    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0 1px, transparent 1px 18px);
+    linear-gradient(160deg, rgba(58, 33, 23, 0.98) 0%, rgba(114, 49, 24, 0.98) 54%, rgba(169, 77, 26, 0.96) 100%),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.06), transparent 34%);
   color: #fff;
   display: flex;
   flex-direction: column;
-  gap: 26px;
-  box-shadow: 20px 0 55px rgba(21, 42, 36, 0.14);
+  gap: clamp(14px, 3vh, 26px);
+  overflow: hidden;
+  box-shadow: 18px 0 46px rgba(78, 44, 26, 0.16);
 }
 
 .brand {
@@ -2423,10 +2964,10 @@ onMounted(() => {
   display: grid;
   place-items: center;
   border-radius: 8px;
-  background: linear-gradient(135deg, #ffe29a, #f2c35d 50%, #85d4ff);
-  color: #17211c;
+  background: linear-gradient(135deg, #fff1d1 0%, #ffb454 58%, #e9791a 100%);
+  color: #2b211c;
   font-weight: 900;
-  box-shadow: 0 12px 28px rgba(242, 195, 93, 0.28);
+  box-shadow: 0 12px 28px rgba(233, 121, 26, 0.28);
 }
 
 .brand strong,
@@ -2440,13 +2981,14 @@ onMounted(() => {
 }
 
 .nav-list {
-  overflow-y: auto;
+  overflow: hidden;
   display: grid;
-  gap: 20px;
+  align-content: start;
+  gap: clamp(10px, 2.2vh, 20px);
 }
 
 .nav-list p {
-  margin: 0 0 8px;
+  margin: 0 0 clamp(4px, 0.8vh, 8px);
   color: rgba(255, 255, 255, 0.48);
   font-size: 12px;
   font-weight: 800;
@@ -2455,7 +2997,7 @@ onMounted(() => {
 .nav-list button {
   position: relative;
   width: 100%;
-  min-height: 42px;
+  min-height: clamp(34px, 5vh, 42px);
   padding: 0 12px;
   border: 0;
   border-radius: 8px;
@@ -2531,7 +3073,7 @@ onMounted(() => {
 .hero-copy p,
 .page-intro p {
   margin: 0 0 6px;
-  color: #d16b43;
+  color: #d96b1f;
   font-size: 12px;
   font-weight: 900;
   text-transform: uppercase;
@@ -2564,11 +3106,11 @@ onMounted(() => {
 }
 
 .role-badge {
-  border: 1px solid #d9ded6;
+  border: 1px solid #eadfd4;
   border-radius: 8px;
   padding: 8px 12px;
   background: #fff;
-  color: #385046;
+  color: #4e4038;
   font-weight: 800;
 }
 
@@ -2589,10 +3131,10 @@ onMounted(() => {
 .reader-article,
 .related-panel,
 .page-intro {
-  border: 1px solid #dfe4da;
+  border: 1px solid #eadfd4;
   border-radius: 8px;
   background: #fff;
-  box-shadow: 0 14px 40px rgba(31, 49, 42, 0.06);
+  box-shadow: 0 14px 40px rgba(84, 62, 48, 0.06);
   animation: surface-in 520ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
@@ -2607,8 +3149,8 @@ onMounted(() => {
   align-items: stretch;
   overflow: hidden;
   background:
-    linear-gradient(105deg, #123b36 0%, #1b5b4e 46%, #2e8d7a 86%, #f2c35d 150%);
-  background-size: 180% 180%;
+    linear-gradient(112deg, #3a2117 0%, #713218 45%, #c65a1a 100%);
+  background-size: 160% 160%;
   color: #fff;
   animation: surface-in 520ms cubic-bezier(0.2, 0.8, 0.2, 1) both, hero-flow 9s ease-in-out infinite alternate;
 }
@@ -2619,10 +3161,10 @@ onMounted(() => {
   inset: 0;
   z-index: 0;
   background:
-    linear-gradient(120deg, rgba(255, 255, 255, 0.12), transparent 38%),
-    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.08) 0 1px, transparent 1px 54px),
-    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.06) 0 1px, transparent 1px 54px);
-  opacity: 0.7;
+    linear-gradient(120deg, rgba(255, 255, 255, 0.16), transparent 42%),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.065) 0 1px, transparent 1px 58px),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.045) 0 1px, transparent 1px 58px);
+  opacity: 0.62;
   pointer-events: none;
   transform: translate3d(0, 0, 0);
   animation: grid-drift 14s linear infinite;
@@ -2706,8 +3248,8 @@ onMounted(() => {
   border-radius: 50%;
   display: grid;
   place-items: center;
-  background: conic-gradient(#85d4ff var(--progress), rgba(255, 255, 255, 0.18) 0);
-  filter: drop-shadow(0 16px 26px rgba(133, 212, 255, 0.18));
+  background: conic-gradient(#ffbd64 var(--progress), rgba(255, 255, 255, 0.18) 0);
+  filter: drop-shadow(0 16px 26px rgba(255, 180, 84, 0.22));
   animation: ring-breathe 2.8s ease-in-out infinite;
 }
 
@@ -2716,7 +3258,7 @@ onMounted(() => {
   position: absolute;
   inset: 11px;
   border-radius: 50%;
-  background: #1c5b50;
+  background: #5a2c1b;
 }
 
 .progress-ring strong {
@@ -2787,7 +3329,7 @@ onMounted(() => {
   flex: 1;
   min-width: 18px;
   border-radius: 8px 8px 0 0;
-  background: linear-gradient(180deg, #f2c35d, #85d4ff);
+  background: linear-gradient(180deg, #ffb454, #f7b66a);
   transform-origin: bottom;
   animation: bar-rise 720ms cubic-bezier(0.18, 0.78, 0.24, 1) both;
 }
@@ -2815,7 +3357,7 @@ onMounted(() => {
 }
 
 .metric-grid.small {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
 }
 
 .metric-card {
@@ -2835,22 +3377,22 @@ onMounted(() => {
   inset: auto 18px 14px 18px;
   height: 3px;
   border-radius: 999px;
-  background: linear-gradient(90deg, #2c8f72, #85d4ff, #f2c35d);
+  background: linear-gradient(90deg, #e9791a, #ffb454, #8a5a44);
   opacity: 0.34;
 }
 
 .metric-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 18px 45px rgba(31, 49, 42, 0.1);
+  box-shadow: 0 18px 45px rgba(84, 62, 48, 0.1);
 }
 
-.metric-card.green { border-left-color: #2c8f72; }
-.metric-card.orange { border-left-color: #df7d4f; }
-.metric-card.blue { border-left-color: #4b95c8; }
-.metric-card.ink { border-left-color: #243b38; }
+.metric-card.green { border-left-color: #e9791a; }
+.metric-card.orange { border-left-color: #f59e0b; }
+.metric-card.blue { border-left-color: #8a5a44; }
+.metric-card.ink { border-left-color: #2f2925; }
 
 .metric-card span {
-  color: #66766f;
+  color: #75675e;
   font-weight: 700;
 }
 
@@ -2861,7 +3403,7 @@ onMounted(() => {
 }
 
 .metric-card small {
-  color: #c65f3d;
+  color: #c65a1a;
   font-weight: 800;
 }
 
@@ -2928,7 +3470,7 @@ onMounted(() => {
   display: grid;
   gap: 8px;
   min-width: 0;
-  color: #3b4d45;
+  color: #51443b;
   font-weight: 800;
 }
 
@@ -2979,7 +3521,7 @@ onMounted(() => {
 
 .muted,
 .block-copy {
-  color: #66766f;
+  color: #75675e;
   line-height: 1.7;
 }
 
@@ -2997,10 +3539,10 @@ onMounted(() => {
 
 .nutrition-strip span,
 .segmented button {
-  border: 1px solid #dce2d8;
+  border: 1px solid #eadfd4;
   border-radius: 8px;
-  background: #f8faf5;
-  color: #33433c;
+  background: #fffaf4;
+  color: #4d4038;
   padding: 8px 12px;
   font-weight: 800;
 }
@@ -3011,23 +3553,23 @@ onMounted(() => {
 }
 
 .segmented button.active {
-  background: #174f42;
-  border-color: #174f42;
+  background: #8a3d12;
+  border-color: #8a3d12;
   color: #fff;
-  box-shadow: 0 10px 24px rgba(23, 79, 66, 0.18);
+  box-shadow: 0 10px 24px rgba(217, 111, 31, 0.18);
 }
 
 .segmented button:hover {
   transform: translateY(-2px);
-  border-color: #9cc8b7;
+  border-color: #efb07b;
 }
 
 .segmented button.locked,
 .segmented button:disabled {
   cursor: not-allowed;
   color: #8b9691;
-  background: #eef1eb;
-  border-color: #d8ded6;
+  background: #f2ede6;
+  border-color: #eadfd4;
   box-shadow: none;
   transform: none;
 }
@@ -3054,11 +3596,11 @@ onMounted(() => {
   place-items: center;
   background:
     radial-gradient(circle at 50% 50%, #fff 0 56%, transparent 57%),
-    conic-gradient(#2c8f72 calc(var(--score, 72) * 1%), #e7ece4 0);
-  border: 1px solid #dfe6dc;
-  color: #174f42;
+    conic-gradient(#e9791a calc(var(--score, 72) * 1%), #f0e3d8 0);
+  border: 1px solid #eadfd4;
+  color: #8a3d12;
   font-size: 24px;
-  box-shadow: 0 16px 30px rgba(31, 49, 42, 0.08);
+  box-shadow: 0 16px 30px rgba(84, 62, 48, 0.08);
 }
 
 .overview-stack .readiness-score {
@@ -3078,7 +3620,7 @@ onMounted(() => {
 
 .brief-body p {
   margin: 0;
-  color: #52635b;
+  color: #665a52;
   line-height: 1.75;
 }
 
@@ -3094,7 +3636,7 @@ onMounted(() => {
   height: 10px;
   border-radius: 999px;
   overflow: hidden;
-  background: #edf0e8;
+  background: #f3ece4;
 }
 
 .brief-meter i,
@@ -3103,7 +3645,7 @@ onMounted(() => {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #2c8f72, #85d4ff, #f2c35d);
+  background: linear-gradient(90deg, #e9791a, #f7b66a, #ffb454);
   transition: width 520ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
@@ -3117,11 +3659,11 @@ onMounted(() => {
   min-width: 74px;
   border-radius: 8px;
   padding: 10px 12px;
-  background: #173f37;
+  background: #7b371b;
   color: #fff;
   text-align: center;
   font-size: 20px;
-  box-shadow: 0 14px 28px rgba(23, 63, 55, 0.14);
+  box-shadow: 0 14px 28px rgba(122, 55, 27, 0.14);
 }
 
 .flow-copy {
@@ -3147,9 +3689,9 @@ onMounted(() => {
 
 .onboarding-list article,
 .suggestion-list article {
-  border: 1px solid #e0e6dc;
+  border: 1px solid #eadfd4;
   border-radius: 8px;
-  background: #fbfcf8;
+  background: #fffaf4;
   padding: 14px;
   transition: transform 190ms ease, border-color 190ms ease, box-shadow 190ms ease, background 190ms ease;
 }
@@ -3174,25 +3716,25 @@ onMounted(() => {
   border-radius: 8px;
   display: grid;
   place-items: center;
-  background: #eaf6ef;
-  color: #2c8f72;
+  background: #fff1df;
+  color: #e9791a;
   font-size: 20px;
 }
 
 .onboarding-list article.done {
-  border-color: #bde0cf;
-  background: #f4fbf6;
+  border-color: #f2c39f;
+  background: #fff7ed;
 }
 
 .onboarding-list strong,
 .suggestion-list strong {
-  color: #17211c;
+  color: #2b211c;
 }
 
 .onboarding-list p,
 .suggestion-list p {
   margin: 5px 0 0;
-  color: #607169;
+  color: #71645b;
   line-height: 1.65;
 }
 
@@ -3213,25 +3755,25 @@ onMounted(() => {
 .suggestion-list article:hover,
 .onboarding-list article:hover {
   transform: translateY(-3px);
-  border-color: #b8d3c8;
+  border-color: #edb98f;
   background: #fff;
-  box-shadow: 0 16px 30px rgba(31, 49, 42, 0.08);
+  box-shadow: 0 16px 30px rgba(84, 62, 48, 0.08);
 }
 
 .suggestion-list span {
   display: block;
   margin-bottom: 6px;
-  color: #c65f3d;
+  color: #c65a1a;
   font-size: 12px;
   font-weight: 900;
 }
 
 .empty-mini {
   min-height: 220px;
-  border: 1px dashed #d0dbd4;
+  border: 1px dashed #eadfd4;
   border-radius: 8px;
-  background: #fbfcf8;
-  color: #607169;
+  background: #fffaf4;
+  color: #71645b;
   display: grid;
   place-items: center;
   align-content: center;
@@ -3245,15 +3787,15 @@ onMounted(() => {
 }
 
 .empty-mini .el-icon {
-  color: #8aa097;
+  color: #a98a73;
   font-size: 32px;
 }
 
 .coverage-badge {
-  border: 1px solid #dce2d8;
+  border: 1px solid #eadfd4;
   border-radius: 8px;
-  background: #f8faf5;
-  color: #385046;
+  background: #fffaf4;
+  color: #4e4038;
   padding: 8px 12px;
   font-weight: 900;
   white-space: nowrap;
@@ -3273,8 +3815,8 @@ onMounted(() => {
   min-width: 0;
   min-height: 34px;
   border-radius: 6px;
-  border: 1px solid #e0e6dc;
-  background: #f1f4ee;
+  border: 1px solid #eadfd4;
+  background: #f8efe6;
   transition: transform 180ms ease, border-color 180ms ease;
 }
 
@@ -3284,13 +3826,13 @@ onMounted(() => {
 
 .heatmap-grid span:hover {
   transform: translateY(-3px);
-  border-color: #9cc8b7;
+  border-color: #efb07b;
 }
 
-.heatmap-grid .level-1 { background: #dff4ea; }
-.heatmap-grid .level-2 { background: #b9e5d3; }
-.heatmap-grid .level-3 { background: #6fc19f; }
-.heatmap-grid .level-4 { background: #2c8f72; }
+.heatmap-grid .level-1 { background: #ffe6c7; }
+.heatmap-grid .level-2 { background: #ffc078; }
+.heatmap-grid .level-3 { background: #f59e0b; }
+.heatmap-grid .level-4 { background: #c65a1a; }
 
 .heatmap-grid.large {
   grid-template-columns: repeat(7, minmax(0, 1fr));
@@ -3305,7 +3847,7 @@ onMounted(() => {
 }
 
 .heatmap-grid.large small {
-  color: rgba(23, 42, 36, 0.72);
+  color: rgba(43, 33, 28, 0.72);
   font-weight: 800;
 }
 
@@ -3323,9 +3865,9 @@ onMounted(() => {
 }
 
 .plan-execution-bar > div {
-  border: 1px solid #dfe4da;
+  border: 1px solid #eadfd4;
   border-radius: 8px;
-  background: #fbfcf8;
+  background: #fffaf4;
   padding: 12px;
   display: grid;
   align-content: center;
@@ -3333,12 +3875,12 @@ onMounted(() => {
 }
 
 .plan-execution-bar span {
-  color: #66766f;
+  color: #75675e;
   font-weight: 800;
 }
 
 .plan-execution-bar strong {
-  color: #17211c;
+  color: #2b211c;
   font-size: 18px;
 }
 
@@ -3349,6 +3891,58 @@ onMounted(() => {
   margin-bottom: 18px;
 }
 
+.cycle-grid,
+.adjustment-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.cycle-grid article,
+.adjustment-list article {
+  min-width: 0;
+  border: 1px solid #eadfd4;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #fffaf4, #fff2e3);
+  padding: 14px;
+}
+
+.cycle-grid span,
+.adjustment-list span {
+  color: #87776b;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.cycle-grid strong,
+.adjustment-list strong {
+  display: block;
+  margin-top: 6px;
+  color: #3a2117;
+  font-size: 16px;
+}
+
+.cycle-grid p,
+.adjustment-list p {
+  margin: 8px 0 0;
+  color: #71645b;
+  line-height: 1.65;
+}
+
+.replacement-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.replacement-actions > span {
+  color: #87776b;
+  font-weight: 900;
+}
+
 .plan-insight-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -3357,16 +3951,16 @@ onMounted(() => {
 }
 
 .plan-insight-grid article {
-  border: 1px solid #dfe4da;
+  border: 1px solid #eadfd4;
   border-radius: 8px;
-  background: linear-gradient(135deg, #f8fbf6, #fff9e8);
+  background: linear-gradient(135deg, #fffaf4, #fff9e8);
   padding: 14px;
   min-width: 0;
 }
 
 .plan-insight-grid span {
   display: block;
-  color: #66766f;
+  color: #75675e;
   font-size: 12px;
   font-weight: 900;
 }
@@ -3374,29 +3968,29 @@ onMounted(() => {
 .plan-insight-grid strong {
   display: block;
   margin-top: 6px;
-  color: #173f37;
+  color: #7b371b;
   font-size: 18px;
   overflow-wrap: anywhere;
 }
 
 .plan-insight-grid p {
   margin: 8px 0 0;
-  color: #607169;
+  color: #71645b;
   line-height: 1.65;
   overflow-wrap: anywhere;
 }
 
 .plan-coach-strip article {
-  border: 1px solid #dfe4da;
+  border: 1px solid #eadfd4;
   border-radius: 8px;
   background:
-    linear-gradient(180deg, #fff, #f8fbf6);
+    linear-gradient(180deg, #fff, #fffaf4);
   padding: 14px;
 }
 
 .plan-coach-strip span {
   display: block;
-  color: #c65f3d;
+  color: #c65a1a;
   font-size: 12px;
   font-weight: 900;
 }
@@ -3404,13 +3998,13 @@ onMounted(() => {
 .plan-coach-strip strong {
   display: block;
   margin-top: 6px;
-  color: #17211c;
+  color: #2b211c;
   font-size: 20px;
 }
 
 .plan-coach-strip p {
   margin: 8px 0 0;
-  color: #607169;
+  color: #71645b;
   line-height: 1.65;
 }
 
@@ -3431,7 +4025,7 @@ onMounted(() => {
 }
 
 .progress-rows span {
-  color: #65756e;
+  color: #75675e;
   font-weight: 800;
 }
 
@@ -3439,7 +4033,7 @@ onMounted(() => {
   grid-column: 1 / -1;
   height: 10px;
   border-radius: 999px;
-  background: #edf0e8;
+  background: #f3ece4;
   overflow: hidden;
 }
 
@@ -3453,7 +4047,7 @@ onMounted(() => {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #2c8f72, #85d4ff);
+  background: linear-gradient(90deg, #e9791a, #f7b66a);
   overflow: hidden;
   transition: width 520ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
@@ -3482,13 +4076,13 @@ onMounted(() => {
 .feed-row,
 .notice-list article,
 .admin-list article {
-  border: 1px solid #edf0ea;
+  border: 1px solid #f3ece4;
   border-radius: 8px;
   padding: 14px;
   display: grid;
   gap: 10px;
   cursor: pointer;
-  background: #fcfdf9;
+  background: #fffdf9;
   transition: transform 190ms ease, border-color 190ms ease, box-shadow 190ms ease, background 190ms ease;
 }
 
@@ -3496,9 +4090,9 @@ onMounted(() => {
 .notice-list article:hover,
 .related-panel button:hover {
   transform: translateY(-3px);
-  border-color: #bfd7cd;
+  border-color: #edb98f;
   background: #fff;
-  box-shadow: 0 16px 30px rgba(31, 49, 42, 0.08);
+  box-shadow: 0 16px 30px rgba(84, 62, 48, 0.08);
 }
 
 .feed-row {
@@ -3565,7 +4159,7 @@ onMounted(() => {
 .feed-row p,
 .article-card p,
 .notice-card p {
-  color: #5c6d65;
+  color: #71645b;
   line-height: 1.7;
 }
 
@@ -3584,9 +4178,9 @@ onMounted(() => {
   max-width: 132px;
 }
 
-.mint { background: #dff4ea; color: #21634e; }
+.mint { background: #ffe3bd; color: #8a3d12; }
 .sun { background: #fff0c8; color: #8a5a10; }
-.sky { background: #dcefff; color: #22658f; }
+.sky { background: #e7eef9; color: #355d7a; }
 .rose { background: #ffe2d6; color: #9b4d2c; }
 
 .page-intro {
@@ -3600,12 +4194,12 @@ onMounted(() => {
 .page-intro span {
   display: block;
   margin-top: 10px;
-  color: #66766f;
+  color: #75675e;
 }
 
 .article-intro,
 .admin-intro {
-  background: linear-gradient(120deg, #fff, #eef8f2);
+  background: linear-gradient(120deg, #fff, #fff2e3);
 }
 
 .notice-grid,
@@ -3633,8 +4227,8 @@ onMounted(() => {
 .notice-card:hover,
 .article-card:hover {
   transform: translateY(-5px);
-  border-color: #b8d3c8;
-  box-shadow: 0 22px 50px rgba(31, 49, 42, 0.12);
+  border-color: #edb98f;
+  box-shadow: 0 22px 50px rgba(84, 62, 48, 0.12);
 }
 
 .article-card footer {
@@ -3642,7 +4236,7 @@ onMounted(() => {
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 12px;
-  color: #7b8983;
+  color: #87776b;
 }
 
 .article-card footer small {
@@ -3651,7 +4245,7 @@ onMounted(() => {
 
 .article-card em {
   font-style: normal;
-  color: #c65f3d;
+  color: #c65a1a;
   font-weight: 800;
 }
 
@@ -3660,28 +4254,28 @@ onMounted(() => {
 .task-card small,
 .timeline-row span,
 .timeline-row small {
-  color: #7b8983;
+  color: #87776b;
 }
 
 .task-card {
-  border: 1px solid #dfe4da;
+  border: 1px solid #eadfd4;
   border-radius: 8px;
   background: #fff;
   padding: 0;
   overflow: hidden;
   cursor: default;
-  box-shadow: 0 14px 34px rgba(31, 49, 42, 0.07);
+  box-shadow: 0 14px 34px rgba(84, 62, 48, 0.07);
 }
 
 .task-card:hover {
   transform: translateY(-5px);
-  border-color: #b7d1c7;
-  box-shadow: 0 24px 58px rgba(31, 49, 42, 0.13);
+  border-color: #edb98f;
+  box-shadow: 0 24px 58px rgba(84, 62, 48, 0.13);
 }
 
 .task-card.done {
-  border-color: #85c9ad;
-  background: linear-gradient(180deg, #fff, #f3fbf6);
+  border-color: #e9822d;
+  background: linear-gradient(180deg, #fff, #fff6ea);
 }
 
 .task-card.done .task-body {
@@ -3689,8 +4283,8 @@ onMounted(() => {
 }
 
 .task-checkbar {
-  border-bottom: 1px solid #edf0ea;
-  background: #f8faf5;
+  border-bottom: 1px solid #f3ece4;
+  background: #fffaf4;
   padding: 10px 14px;
 }
 
@@ -3703,7 +4297,7 @@ onMounted(() => {
   min-height: 190px;
   display: grid;
   place-items: center;
-  color: #8aa097;
+  color: #a98a73;
   font-size: 42px;
 }
 
@@ -3715,7 +4309,7 @@ onMounted(() => {
   border: 1px solid rgba(255, 255, 255, 0.62);
   border-radius: 8px;
   padding: 6px 9px;
-  background: rgba(23, 42, 36, 0.72);
+  background: rgba(43, 33, 28, 0.72);
   color: #fff;
   font-size: 12px;
   font-weight: 800;
@@ -3729,7 +4323,7 @@ onMounted(() => {
 
 .image-source:hover {
   transform: translateY(-2px);
-  background: rgba(23, 42, 36, 0.88);
+  background: rgba(43, 33, 28, 0.88);
 }
 
 .task-body {
@@ -3739,7 +4333,7 @@ onMounted(() => {
 }
 
 .task-body span {
-  color: #c65f3d;
+  color: #c65a1a;
   font-weight: 900;
 }
 
@@ -3761,8 +4355,8 @@ onMounted(() => {
 
 .task-tags em {
   border-radius: 8px;
-  background: #eef7f1;
-  color: #23614e;
+  background: #fff1df;
+  color: #8a3d12;
   padding: 6px 10px;
   font-size: 12px;
   font-style: normal;
@@ -3781,10 +4375,10 @@ onMounted(() => {
 }
 
 .detail-tag-grid span {
-  border: 1px solid #dce2d8;
+  border: 1px solid #eadfd4;
   border-radius: 8px;
   background: #fff;
-  color: #315147;
+  color: #4e4038;
   padding: 8px 10px;
   font-size: 13px;
   font-weight: 900;
@@ -3797,9 +4391,9 @@ onMounted(() => {
 }
 
 .guide-quality-grid article {
-  border: 1px solid #e4eadf;
+  border: 1px solid #eee4da;
   border-radius: 8px;
-  background: #fbfcf8;
+  background: #fffaf4;
   padding: 10px 12px;
   min-width: 0;
 }
@@ -3807,14 +4401,14 @@ onMounted(() => {
 .guide-quality-grid span {
   display: block;
   margin-bottom: 5px;
-  color: #c65f3d;
+  color: #c65a1a;
   font-size: 12px;
   font-weight: 900;
 }
 
 .guide-quality-grid p {
   margin: 0;
-  color: #566860;
+  color: #665a52;
   line-height: 1.65;
   overflow-wrap: anywhere;
 }
@@ -3826,35 +4420,113 @@ onMounted(() => {
 }
 
 .task-dose strong {
-  border: 1px solid #dce2d8;
+  border: 1px solid #eadfd4;
   border-radius: 8px;
   padding: 7px 10px;
-  background: #f8faf5;
-  color: #33433c;
+  background: #fffaf4;
+  color: #4d4038;
   font-size: 13px;
 }
 
 .task-body p {
-  color: #5b6c64;
+  color: #71645b;
   line-height: 1.7;
 }
 
 .task-coach-note,
 .task-alternative {
-  border: 1px solid #e4eadf;
+  border: 1px solid #eee4da;
   border-radius: 8px;
-  background: #fbfcf8;
+  background: #fffaf4;
   padding: 10px 12px;
 }
 
 .task-coach-note {
-  color: #234a40;
+  color: #5f3928;
   font-weight: 800;
 }
 
 .task-alternative {
   color: #7a5825;
   background: #fff9e8;
+}
+
+.detail-disclosure {
+  border: 1px solid #eadfd4;
+  border-radius: 8px;
+  background: #fffaf4;
+  overflow: hidden;
+}
+
+.detail-disclosure + .detail-disclosure {
+  margin-top: 12px;
+}
+
+.detail-disclosure summary {
+  min-height: 48px;
+  padding: 12px 14px;
+  display: grid;
+  grid-template-columns: minmax(0, 150px) minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  cursor: pointer;
+  list-style: none;
+}
+
+.detail-disclosure summary::-webkit-details-marker {
+  display: none;
+}
+
+.detail-disclosure summary::after {
+  content: "+";
+  justify-self: end;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: #fff1df;
+  color: #8a3d12;
+  font-weight: 900;
+  transition: transform 180ms ease, background 180ms ease;
+}
+
+.detail-disclosure[open] summary::after {
+  content: "-";
+  background: #e9791a;
+  color: #fff;
+}
+
+.detail-disclosure summary span {
+  color: #c65a1a;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.detail-disclosure summary strong {
+  color: #7b371b;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.detail-disclosure[open] {
+  background: #fff;
+}
+
+.detail-disclosure[open] > :not(summary) {
+  margin: 0 14px 14px;
+}
+
+.plan-secondary {
+  margin-bottom: 18px;
+}
+
+.task-secondary {
+  margin-top: 4px;
+}
+
+.nutrition-secondary {
+  margin-top: 12px;
 }
 
 .guide-columns {
@@ -3864,14 +4536,14 @@ onMounted(() => {
 }
 
 .guide-columns h4 {
-  color: #173f37;
+  color: #7b371b;
 }
 
 .guide-columns ol,
 .guide-columns ul {
   margin: 8px 0 0;
   padding-left: 18px;
-  color: #566860;
+  color: #665a52;
   line-height: 1.75;
 }
 
@@ -3886,7 +4558,7 @@ onMounted(() => {
   grid-column: 1 / -1;
   border: 0;
   background: transparent;
-  color: #174f42;
+  color: #8a3d12;
   font-weight: 900;
   display: inline-flex;
   align-items: center;
@@ -3908,12 +4580,12 @@ onMounted(() => {
 }
 
 .reader-meta span {
-  color: #c65f3d;
+  color: #c65a1a;
   font-weight: 900;
 }
 
 .reader-meta small {
-  color: #74827c;
+  color: #87776b;
 }
 
 .reader-article h2 {
@@ -3924,7 +4596,7 @@ onMounted(() => {
 
 .reader-article p {
   margin: 0 0 18px;
-  color: #33443d;
+  color: #4d4038;
   font-size: 18px;
   line-height: 2;
 }
@@ -3940,12 +4612,12 @@ onMounted(() => {
 }
 
 .related-panel button {
-  border: 1px solid #e0e6dc;
+  border: 1px solid #eadfd4;
   border-radius: 8px;
-  background: #fbfcf8;
+  background: #fffaf4;
   padding: 12px;
   text-align: left;
-  color: #31443c;
+  color: #4d4038;
   font-weight: 800;
   cursor: pointer;
   transition: transform 190ms ease, border-color 190ms ease, box-shadow 190ms ease, background 190ms ease;
@@ -3957,20 +4629,20 @@ onMounted(() => {
   gap: 12px;
   align-items: center;
   padding: 14px 0;
-  border-bottom: 1px solid #edf0ea;
+  border-bottom: 1px solid #f3ece4;
 }
 
 .timeline-row p {
   margin: 0;
-  color: #5d6f67;
+  color: #665a52;
 }
 
 .result-block,
 .reader-box {
-  border: 1px solid #dfe4da;
+  border: 1px solid #eadfd4;
   border-radius: 8px;
   padding: 18px;
-  background: #fbfcf8;
+  background: #fffaf4;
 }
 
 .result-block {
@@ -3983,8 +4655,8 @@ onMounted(() => {
   border-radius: 8px;
   margin-bottom: 16px;
   background:
-    linear-gradient(135deg, #eef5ef, #f7f1df),
-    repeating-linear-gradient(90deg, rgba(35, 66, 58, 0.07) 0 1px, transparent 1px 38px);
+    linear-gradient(135deg, #fff2e3, #f7f1df),
+    repeating-linear-gradient(90deg, rgba(122, 55, 27, 0.07) 0 1px, transparent 1px 38px);
 }
 
 .result-block h3,
@@ -4027,7 +4699,7 @@ onMounted(() => {
 }
 
 .guide-library-card {
-  border: 1px solid #dfe4da;
+  border: 1px solid #eadfd4;
   border-radius: 8px;
   background: #fff;
   overflow: hidden;
@@ -4039,15 +4711,15 @@ onMounted(() => {
 
 .guide-library-card:hover {
   transform: translateY(-5px);
-  border-color: #b7d1c7;
-  box-shadow: 0 22px 50px rgba(31, 49, 42, 0.12);
+  border-color: #edb98f;
+  box-shadow: 0 22px 50px rgba(84, 62, 48, 0.12);
 }
 
 .guide-library-card img {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  background: linear-gradient(135deg, #eef5ef, #f7f1df);
+  background: linear-gradient(135deg, #fff2e3, #f7f1df);
   padding: 12px;
 }
 
@@ -4058,7 +4730,7 @@ onMounted(() => {
 }
 
 .guide-library-card span {
-  color: #c65f3d;
+  color: #c65a1a;
   font-size: 12px;
   font-weight: 900;
 }
@@ -4069,14 +4741,14 @@ onMounted(() => {
 }
 
 .guide-library-card p {
-  color: #5b6c64;
+  color: #71645b;
   line-height: 1.65;
 }
 
 .clean-list {
   margin: 12px 0 0;
   padding-left: 18px;
-  color: #52635b;
+  color: #665a52;
   line-height: 1.8;
 }
 
@@ -4114,9 +4786,9 @@ onMounted(() => {
   grid-template-columns: 210px minmax(0, 1fr);
   gap: 16px;
   margin-top: 16px;
-  border: 1px solid #dfe4da;
+  border: 1px solid #eadfd4;
   border-radius: 8px;
-  background: #fbfcf8;
+  background: #fffaf4;
   padding: 14px;
 }
 
@@ -4124,7 +4796,7 @@ onMounted(() => {
   min-height: 150px;
   border-radius: 8px;
   overflow: hidden;
-  background: linear-gradient(135deg, #eef5ef, #f7f1df);
+  background: linear-gradient(135deg, #fff2e3, #f7f1df);
 }
 
 .upload-preview img {
@@ -4150,7 +4822,7 @@ onMounted(() => {
 
 .upload-actions small {
   max-width: 100%;
-  color: #66766f;
+  color: #75675e;
   word-break: break-all;
 }
 
@@ -4169,8 +4841,8 @@ onMounted(() => {
 
 .insights-intro {
   background:
-    linear-gradient(120deg, rgba(255, 255, 255, 0.96), rgba(236, 247, 241, 0.96)),
-    repeating-linear-gradient(90deg, rgba(44, 143, 114, 0.08) 0 1px, transparent 1px 42px);
+    linear-gradient(120deg, rgba(255, 255, 255, 0.96), rgba(255, 243, 223, 0.96)),
+    repeating-linear-gradient(90deg, rgba(233, 121, 26, 0.08) 0 1px, transparent 1px 42px);
 }
 
 .coach-tip-list {
@@ -4182,9 +4854,9 @@ onMounted(() => {
   display: grid;
   grid-template-columns: 12px minmax(0, 1fr);
   gap: 12px;
-  border: 1px solid #edf0ea;
+  border: 1px solid #f3ece4;
   border-radius: 8px;
-  background: #fbfcf8;
+  background: #fffaf4;
   padding: 14px;
 }
 
@@ -4192,16 +4864,16 @@ onMounted(() => {
   width: 12px;
   min-height: 100%;
   border-radius: 999px;
-  background: linear-gradient(180deg, #2c8f72, #85d4ff);
+  background: linear-gradient(180deg, #e9791a, #f7b66a);
 }
 
 .coach-tip-list strong {
-  color: #17211c;
+  color: #2b211c;
 }
 
 .coach-tip-list p {
   margin: 6px 0 0;
-  color: #5b6c64;
+  color: #71645b;
   line-height: 1.7;
 }
 
@@ -4212,9 +4884,9 @@ onMounted(() => {
 }
 
 .achievement-grid article {
-  border: 1px solid #e0e6dc;
+  border: 1px solid #eadfd4;
   border-radius: 8px;
-  background: #fbfcf8;
+  background: #fffaf4;
   padding: 16px;
   display: grid;
   gap: 8px;
@@ -4222,13 +4894,13 @@ onMounted(() => {
 }
 
 .achievement-grid article.done {
-  border-color: #b9dccb;
-  background: linear-gradient(180deg, #fff, #f1fbf5);
+  border-color: #edb98f;
+  background: linear-gradient(180deg, #fff, #fff6ea);
 }
 
 .achievement-grid article:hover {
   transform: translateY(-3px);
-  box-shadow: 0 16px 30px rgba(31, 49, 42, 0.08);
+  box-shadow: 0 16px 30px rgba(84, 62, 48, 0.08);
 }
 
 .achievement-grid span {
@@ -4237,21 +4909,21 @@ onMounted(() => {
   border-radius: 50%;
   display: grid;
   place-items: center;
-  background: #e9eee6;
-  color: #8a9a92;
+  background: #f4eadf;
+  color: #a98a73;
 }
 
 .achievement-grid article.done span {
-  background: #2c8f72;
+  background: #e9791a;
   color: #fff;
 }
 
 .achievement-grid strong {
-  color: #17211c;
+  color: #2b211c;
 }
 
 .achievement-grid small {
-  color: #66766f;
+  color: #75675e;
   font-weight: 800;
 }
 
@@ -4263,9 +4935,9 @@ onMounted(() => {
 }
 
 .macro-grid article {
-  border: 1px solid #dfe4da;
+  border: 1px solid #eadfd4;
   border-radius: 8px;
-  background: #fbfcf8;
+  background: #fffaf4;
   padding: 14px;
   display: grid;
   gap: 12px;
@@ -4279,25 +4951,25 @@ onMounted(() => {
 }
 
 .macro-grid span {
-  color: #66766f;
+  color: #75675e;
   font-weight: 800;
 }
 
 .training-day-tip {
-  border-left: 5px solid #2c8f72;
+  border-left: 5px solid #e9791a;
   border-radius: 8px;
-  background: #f4faf6;
+  background: #fff3e6;
   padding: 14px 16px;
-  color: #31443c;
+  color: #4d4038;
   font-weight: 800;
   line-height: 1.7;
 }
 
 .preference-summary {
-  border: 1px solid #dfe7dc;
+  border: 1px solid #eadfd4;
   border-radius: 8px;
-  background: #fbfcf8;
-  color: #385046;
+  background: #fffaf4;
+  color: #4e4038;
   padding: 12px 14px;
   line-height: 1.7;
   font-weight: 800;
@@ -4311,40 +4983,13 @@ onMounted(() => {
 }
 
 .training-day-tip.rest {
-  border-left-color: #f2c35d;
+  border-left-color: #ffb454;
   background: #fff9e8;
 }
 
 .nutrition-detail-grid,
-.nutrition-watchouts,
-.nutrition-history {
+.nutrition-watchouts {
   margin-top: 16px;
-}
-
-.history-list {
-  display: grid;
-  gap: 10px;
-}
-
-.history-list article {
-  border: 1px solid #e4eadf;
-  border-radius: 8px;
-  background: #fff;
-  padding: 12px;
-  display: grid;
-  gap: 6px;
-}
-
-.history-list strong {
-  color: #173f37;
-}
-
-.history-list span,
-.history-list p {
-  margin: 0;
-  color: #607169;
-  line-height: 1.6;
-  overflow-wrap: anywhere;
 }
 
 .table-shell {
@@ -4485,6 +5130,8 @@ onMounted(() => {
 
   .plan-coach-strip,
   .plan-insight-grid,
+  .cycle-grid,
+  .adjustment-list,
   .achievement-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -4493,15 +5140,21 @@ onMounted(() => {
 @media (max-width: 820px) {
   .workspace-shell {
     grid-template-columns: 1fr;
+    padding-left: 0;
+    overflow-x: hidden;
   }
 
   .sidebar {
     position: sticky;
+    left: auto;
     z-index: 20;
     height: auto;
+    width: 100%;
+    min-width: 0;
     padding: 10px 12px;
     gap: 10px;
-    box-shadow: 0 10px 30px rgba(21, 42, 36, 0.16);
+    overflow: visible;
+    box-shadow: 0 10px 30px rgba(43, 33, 28, 0.16);
   }
 
   .brand {
@@ -4521,23 +5174,25 @@ onMounted(() => {
 
   .nav-list {
     display: flex;
-    overflow-x: auto;
+    flex-wrap: wrap;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow: visible;
     gap: 8px;
-    padding-bottom: 2px;
-    scrollbar-width: none;
+    padding-bottom: 0;
   }
 
   .nav-list section {
     min-width: 0;
-    display: flex;
-    gap: 8px;
+    display: contents;
   }
 
   .nav-list button {
     width: auto;
-    min-width: 94px;
+    min-width: max(96px, calc((100% - 16px) / 3));
     min-height: 36px;
-    flex: 0 0 auto;
+    flex: 1 1 96px;
     justify-content: center;
     padding: 0 10px;
   }
@@ -4548,7 +5203,13 @@ onMounted(() => {
   }
 
   .main {
+    width: 100%;
     padding: 18px;
+    overflow-x: hidden;
+  }
+
+  .hero-stage {
+    grid-template-columns: 1fr;
   }
 
   .topbar h1 {
@@ -4571,6 +5232,19 @@ onMounted(() => {
     width: 100%;
   }
 
+  .topbar-actions,
+  .hero-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .topbar-actions .el-button,
+  .hero-actions .el-button,
+  .role-badge {
+    width: 100%;
+    margin-left: 0 !important;
+  }
+
   .hero-actions .el-button,
   .topbar-actions .el-button {
     flex: 1 1 150px;
@@ -4585,21 +5259,33 @@ onMounted(() => {
   .notice-grid,
   .article-grid,
   .task-grid,
+  .product-command-grid,
+  .product-flow-grid,
   .guide-library-grid,
   .guide-upload-panel,
   .nutrition-tip-grid,
   .plan-execution-bar,
   .plan-coach-strip,
   .plan-insight-grid,
+  .cycle-grid,
+  .adjustment-list,
   .achievement-grid,
   .form-grid,
   .form-grid.compact {
     grid-template-columns: 1fr;
   }
 
+  .detail-disclosure summary {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .detail-disclosure summary span {
+    grid-column: 1 / -1;
+  }
+
   .overview-stack .metric-grid {
     display: grid !important;
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    grid-template-columns: 1fr !important;
   }
 
   .onboarding-list article {
@@ -4620,6 +5306,10 @@ onMounted(() => {
 
   .hero-visual {
     padding: 18px;
+  }
+
+  .overview-stack .hero-visual {
+    display: none;
   }
 
   .visual-ring-card {
@@ -4655,6 +5345,11 @@ onMounted(() => {
     padding: 10px 12px;
   }
 
+  .nav-list button {
+    min-width: calc((100% - 8px) / 2);
+    flex-basis: calc((100% - 8px) / 2);
+  }
+
   .topbar h1 {
     font-size: 24px;
   }
@@ -4678,14 +5373,10 @@ onMounted(() => {
     padding: 14px;
   }
 
-  .overview-stack .hero-visual {
-    display: none;
-  }
-
   .overview-stack > .metric-grid {
     display: grid !important;
     gap: 10px;
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    grid-template-columns: 1fr !important;
   }
 
   .overview-stack .metric-card {
@@ -4723,6 +5414,39 @@ onMounted(() => {
 
   .feed-row {
     gap: 12px;
+  }
+}
+
+@media (max-height: 680px) and (min-width: 821px) {
+  .sidebar {
+    padding: 16px;
+    gap: 12px;
+  }
+
+  .brand-logo {
+    width: 40px;
+    height: 40px;
+  }
+
+  .brand small,
+  .sidebar-user small {
+    display: none;
+  }
+
+  .nav-list {
+    gap: 8px;
+  }
+
+  .nav-list p {
+    margin-bottom: 4px;
+  }
+
+  .nav-list button {
+    min-height: 32px;
+  }
+
+  .sidebar-user {
+    padding: 10px;
   }
 }
 </style>

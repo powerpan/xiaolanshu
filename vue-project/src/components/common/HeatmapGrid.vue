@@ -43,8 +43,8 @@ defineProps({
   min-width: 0;
   min-height: 34px;
   border-radius: 6px;
-  border: 1px solid #e0e6dc;
-  background: #f1f4ee;
+  border: 1px solid #eadfd4;
+  background: #f8efe6;
   transition: transform 180ms ease, border-color 180ms ease;
 }
 
@@ -54,13 +54,13 @@ defineProps({
 
 .heatmap-grid span:hover {
   transform: translateY(-3px);
-  border-color: #9cc8b7;
+  border-color: #efb07b;
 }
 
-.heatmap-grid .level-1 { background: #dff4ea; }
-.heatmap-grid .level-2 { background: #b9e5d3; }
-.heatmap-grid .level-3 { background: #6fc19f; }
-.heatmap-grid .level-4 { background: #2c8f72; }
+.heatmap-grid .level-1 { background: #ffe6c7; }
+.heatmap-grid .level-2 { background: #ffc078; }
+.heatmap-grid .level-3 { background: #f59e0b; }
+.heatmap-grid .level-4 { background: #c65a1a; }
 
 .heatmap-grid.large {
   grid-template-columns: repeat(7, minmax(0, 1fr));
@@ -75,7 +75,7 @@ defineProps({
 }
 
 .heatmap-grid.large small {
-  color: rgba(23, 42, 36, 0.72);
+  color: rgba(43, 33, 28, 0.72);
   font-weight: 800;
 }
 

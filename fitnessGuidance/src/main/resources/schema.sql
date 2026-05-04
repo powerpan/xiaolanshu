@@ -159,6 +159,44 @@ CREATE TABLE IF NOT EXISTS plantaskrecords (
 CREATE UNIQUE INDEX IF NOT EXISTS uk_plantaskrecords_key
     ON plantaskrecords(username, plan_date, daytime, action_index);
 
+CREATE TABLE IF NOT EXISTS trainingcycles (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50) NOT NULL,
+    cycle_week INT DEFAULT 1,
+    stage VARCHAR(80),
+    cycle_goal TEXT,
+    recovery_day INT DEFAULT 4,
+    start_date DATE,
+    end_date DATE,
+    status VARCHAR(30) DEFAULT 'active'
+);
+
+CREATE INDEX IF NOT EXISTS idx_trainingcycles_username_status
+    ON trainingcycles(username, status);
+
+CREATE TABLE IF NOT EXISTS planadjustmentrecords (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50) NOT NULL,
+    reason VARCHAR(200),
+    adjustment_type VARCHAR(80),
+    summary TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_planadjustmentrecords_username_time
+    ON planadjustmentrecords(username, created_at);
+
+CREATE TABLE IF NOT EXISTS exercisealternatives (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    source_guide_id INT NOT NULL,
+    target_guide_id INT NOT NULL,
+    reason VARCHAR(300),
+    priority INT DEFAULT 10
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_exercisealternatives_pair
+    ON exercisealternatives(source_guide_id, target_guide_id);
+
 CREATE TABLE IF NOT EXISTS nutritionpreferences (
     id INT AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(50) NOT NULL UNIQUE,
@@ -181,3 +219,55 @@ CREATE TABLE IF NOT EXISTS nutritionrecommendationhistories (
     summary TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS fooditems (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    category VARCHAR(50) NOT NULL,
+    calories_per100g INT,
+    protein_per100g DOUBLE,
+    carbohydrate_per100g DOUBLE,
+    fat_per100g DOUBLE,
+    tags VARCHAR(300),
+    scene VARCHAR(80)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_fooditems_name
+    ON fooditems(name);
+
+CREATE TABLE IF NOT EXISTS mealtemplates (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(120) NOT NULL,
+    meal_type VARCHAR(50) NOT NULL,
+    goal VARCHAR(50) DEFAULT '通用',
+    scene VARCHAR(80) DEFAULT '通用',
+    target_calories INT,
+    description TEXT,
+    foods TEXT
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_mealtemplates_identity
+    ON mealtemplates(name, meal_type, goal, scene);
+
+CREATE TABLE IF NOT EXISTS foodreplacements (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    source_food VARCHAR(100) NOT NULL,
+    replacement_food VARCHAR(200) NOT NULL,
+    reason TEXT,
+    category VARCHAR(50)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_foodreplacements_pair
+    ON foodreplacements(source_food, replacement_food);
+
+CREATE TABLE IF NOT EXISTS eatingscenarios (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    goal VARCHAR(50) DEFAULT '通用',
+    strategy TEXT,
+    avoid TEXT,
+    example TEXT
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_eatingscenarios_identity
+    ON eatingscenarios(name, goal);

@@ -3,6 +3,7 @@
 
 # Logs
 logs/
+.dev-logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -35,6 +36,7 @@ fitnessGuidance/uploads/exercise-guides/*
 !fitnessGuidance/uploads/exercise-guides/.gitkeep
 
 # IDE files
+.codex/
 .idea/
 .vscode/
 *.iml

@@ -12,6 +12,7 @@ export const listExerciseGuides = ({
   missingStepsOnly,
   missingTipsOnly,
   missingMistakesOnly,
+  missingAlternativesOnly,
 } = {}) => unwrap(api.get('/exerciseguide/list', {
   params: withToken({
     actionPattern: actionPattern || undefined,
@@ -21,7 +22,12 @@ export const listExerciseGuides = ({
     missingStepsOnly: missingStepsOnly || undefined,
     missingTipsOnly: missingTipsOnly || undefined,
     missingMistakesOnly: missingMistakesOnly || undefined,
+    missingAlternativesOnly: missingAlternativesOnly || undefined,
   }),
+}))
+
+export const listExerciseAlternatives = (payload) => unwrap(api.get('/exerciseguide/alternatives', {
+  params: withToken(payload),
 }))
 
 export const addExerciseGuide = (payload) => unwrap(api.post('/exerciseguide/addguide', formBody(payload)))

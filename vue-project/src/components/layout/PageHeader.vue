@@ -12,7 +12,7 @@ defineProps({
   },
 })
 
-const emit = defineEmits(['logout'])
+const emit = defineEmits(['logout', 'open-profile'])
 </script>
 
 <template>
@@ -22,7 +22,9 @@ const emit = defineEmits(['logout'])
       <h1>{{ isAdmin ? `${greetingName}，管理内容、动作库和账号` : `${greetingName}，今天也稳一点进步` }}</h1>
     </div>
     <div class="topbar-actions">
-      <span class="role-badge">{{ isAdmin ? '管理员模式' : '普通用户' }}</span>
+      <button class="role-badge" type="button" :title="isAdmin ? '进入用户管理' : '进入个人资料'" @click="emit('open-profile')">
+        {{ isAdmin ? '管理员模式' : '普通用户' }}
+      </button>
       <el-button :icon="SwitchButton" @click="emit('logout')">退出</el-button>
     </div>
   </header>
@@ -44,7 +46,7 @@ const emit = defineEmits(['logout'])
 
 .topbar p {
   margin: 0 0 6px;
-  color: #d16b43;
+  color: #d96b1f;
   font-size: 12px;
   font-weight: 900;
   text-transform: uppercase;
@@ -69,12 +71,22 @@ const emit = defineEmits(['logout'])
 }
 
 .role-badge {
-  border: 1px solid #d9ded6;
+  appearance: none;
+  border: 1px solid #eadfd4;
   border-radius: 8px;
   padding: 8px 12px;
   background: #fff;
-  color: #385046;
+  color: #4e4038;
   font-weight: 800;
+  cursor: pointer;
+  transition: border-color 180ms ease, color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+}
+
+.role-badge:hover {
+  border-color: #efb07b;
+  color: #7b371b;
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(217, 111, 31, 0.14);
 }
 
 @media (max-width: 820px) {
@@ -90,10 +102,14 @@ const emit = defineEmits(['logout'])
 
   .topbar-actions {
     width: 100%;
+    display: grid;
+    grid-template-columns: 1fr;
   }
 
-  .topbar-actions .el-button {
-    flex: 1 1 150px;
+  .topbar-actions .el-button,
+  .role-badge {
+    width: 100%;
+    margin-left: 0 !important;
   }
 }
 

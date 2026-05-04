@@ -1,8 +1,15 @@
--- 小蓝书健身指导系统 openGauss 初始化脚本
+-- 跃鹿运动健身指导系统 openGauss 初始化脚本
 -- 适用于新建或可重置的 openGauss 数据库。执行前请确认目标库中的同名表可以被删除。
 
 DROP TABLE IF EXISTS nutritionpreferences;
+DROP TABLE IF EXISTS eatingscenarios;
+DROP TABLE IF EXISTS foodreplacements;
+DROP TABLE IF EXISTS mealtemplates;
+DROP TABLE IF EXISTS fooditems;
 DROP TABLE IF EXISTS nutritionrecommendationhistories;
+DROP TABLE IF EXISTS exercisealternatives;
+DROP TABLE IF EXISTS planadjustmentrecords;
+DROP TABLE IF EXISTS trainingcycles;
 DROP TABLE IF EXISTS plantaskrecords;
 DROP TABLE IF EXISTS fitnesscheckins;
 DROP TABLE IF EXISTS exerciseguides;
@@ -162,6 +169,44 @@ CREATE TABLE plantaskrecords (
 CREATE UNIQUE INDEX uk_plantaskrecords_key
     ON plantaskrecords(username, plan_date, daytime, action_index);
 
+CREATE TABLE trainingcycles (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(50) NOT NULL,
+    cycle_week INT DEFAULT 1,
+    stage VARCHAR(80),
+    cycle_goal TEXT,
+    recovery_day INT DEFAULT 4,
+    start_date DATE,
+    end_date DATE,
+    status VARCHAR(30) DEFAULT 'active'
+);
+
+CREATE INDEX idx_trainingcycles_username_status
+    ON trainingcycles(username, status);
+
+CREATE TABLE planadjustmentrecords (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(50) NOT NULL,
+    reason VARCHAR(200),
+    adjustment_type VARCHAR(80),
+    summary TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_planadjustmentrecords_username_time
+    ON planadjustmentrecords(username, created_at);
+
+CREATE TABLE exercisealternatives (
+    id SERIAL PRIMARY KEY,
+    source_guide_id INT NOT NULL,
+    target_guide_id INT NOT NULL,
+    reason VARCHAR(300),
+    priority INT DEFAULT 10
+);
+
+CREATE UNIQUE INDEX uk_exercisealternatives_pair
+    ON exercisealternatives(source_guide_id, target_guide_id);
+
 CREATE TABLE nutritionpreferences (
     id SERIAL PRIMARY KEY,
     username VARCHAR(50) NOT NULL UNIQUE,
@@ -185,11 +230,60 @@ CREATE TABLE nutritionrecommendationhistories (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE fooditems (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    category VARCHAR(50) NOT NULL,
+    calories_per100g INT,
+    protein_per100g DOUBLE PRECISION,
+    carbohydrate_per100g DOUBLE PRECISION,
+    fat_per100g DOUBLE PRECISION,
+    tags VARCHAR(300),
+    scene VARCHAR(80)
+);
+
+CREATE TABLE mealtemplates (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(120) NOT NULL,
+    meal_type VARCHAR(50) NOT NULL,
+    goal VARCHAR(50) DEFAULT '通用',
+    scene VARCHAR(80) DEFAULT '通用',
+    target_calories INT,
+    description TEXT,
+    foods TEXT
+);
+
+CREATE UNIQUE INDEX uk_mealtemplates_identity
+    ON mealtemplates(name, meal_type, goal, scene);
+
+CREATE TABLE foodreplacements (
+    id SERIAL PRIMARY KEY,
+    source_food VARCHAR(100) NOT NULL,
+    replacement_food VARCHAR(200) NOT NULL,
+    reason TEXT,
+    category VARCHAR(50)
+);
+
+CREATE UNIQUE INDEX uk_foodreplacements_pair
+    ON foodreplacements(source_food, replacement_food);
+
+CREATE TABLE eatingscenarios (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    goal VARCHAR(50) DEFAULT '通用',
+    strategy TEXT,
+    avoid TEXT,
+    example TEXT
+);
+
+CREATE UNIQUE INDEX uk_eatingscenarios_identity
+    ON eatingscenarios(name, goal);
+
 INSERT INTO users (
     username, nickname, password, userpic, createtime, registered, identity, specialty, height, weight
 ) VALUES
 ('admin', '管理员', 'pbkdf2$65536$9ojDiz+XxDpAAyzkmKoBSw==$Ykc4o6smaK4Z6rWKd92wcMpjaRKNHhSsQQwXGGY4o5g=', '', CURRENT_TIMESTAMP, TRUE, 'ADMIN', '力量训练', 175, 70),
-('demo', '小蓝用户', 'pbkdf2$65536$AEw8UQUNkLcaWgtXY7CBjQ==$pYIhUizKhBjx1zlryk5lrb9jFZXjFTAPk+8QOXZGn08=', '', CURRENT_TIMESTAMP, TRUE, 'user', '跑步和徒手训练', 168, 62);
+('demo', '小蓝用户', 'pbkdf2$65536$VkDq1OiLzwV4K9r8COcaNA==$/juevOS0Y31WJkELtkAynsK9Wh09GzPdqfRInvMks98=', '', CURRENT_TIMESTAMP, TRUE, 'user', '跑步和徒手训练', 168, 62);
 
 INSERT INTO userprofiles (
     username, fitnessgoal, weeklyfrequency, equipment, exlevel
@@ -206,7 +300,7 @@ INSERT INTO nutritionpreferences (
 INSERT INTO notices (
     id, title, content, author, noticetime
 ) VALUES
-(1, '欢迎来到小蓝书', '这里会同步训练提醒、产品更新和健康建议。你可以先完善训练目标、每周频率、可用器材和当前水平，再进入训练计划查看今日安排。', 'admin', CURRENT_TIMESTAMP),
+(1, '欢迎来到跃鹿运动', '这里会同步训练提醒、产品更新和健康建议。你可以先完善训练目标、每周频率、可用器材和当前水平，再进入训练计划查看今日安排。', 'admin', CURRENT_TIMESTAMP),
 (2, '本周训练建议：先稳定，再加量', '如果你刚开始恢复训练，本周优先完成计划内次数，不需要追求额外加练。每次训练前做 5 到 8 分钟热身，训练后记录状态，连续两周稳定后再逐步增加组数。', 'admin', CURRENT_TIMESTAMP - INTERVAL '1 day');
 
 INSERT INTO articles (
@@ -489,7 +583,78 @@ INSERT INTO nutritionrecommendationhistories (
 ) VALUES
 ('demo', 1960, 93, 260, 50, '偏好「均衡饮食」，预算「中等」，外食频率「偶尔外食」。', '当前目标「保持健康」建议日摄入约 1960 kcal，优先保证蛋白质和规律三餐。', CURRENT_TIMESTAMP);
 
+INSERT INTO trainingcycles (
+    username, cycle_week, stage, cycle_goal, recovery_day, start_date, end_date, status
+) VALUES
+('demo', 1, '基础适应期', '围绕「保持健康」完成每周 3 次训练，并保证动作质量记录。', 4, CURRENT_DATE, CURRENT_DATE + INTERVAL '27 days', 'active');
+
+INSERT INTO planadjustmentrecords (
+    username, reason, adjustment_type, summary, created_at
+) VALUES
+('demo', '本周动作记录已开始形成', '保持计划', '先保持当前每周 3 次节奏，连续两周稳定后再给主动作加一组。', CURRENT_TIMESTAMP);
+
+INSERT INTO exercisealternatives(source_guide_id, target_guide_id, reason, priority)
+SELECT s.id, t.id, '同为水平推，可根据器材和强度替换。', 1
+FROM exerciseguides s, exerciseguides t
+WHERE s.actionname = '俯卧撑' AND t.actionname = '弹力带胸推';
+
+INSERT INTO exercisealternatives(source_guide_id, target_guide_id, reason, priority)
+SELECT s.id, t.id, '同为水平拉，适合在徒手和弹力带条件之间切换。', 1
+FROM exerciseguides s, exerciseguides t
+WHERE s.actionname = '桌下反向划船' AND t.actionname = '弹力带划船';
+
+INSERT INTO exercisealternatives(source_guide_id, target_guide_id, reason, priority)
+SELECT s.id, t.id, '同为下肢蹲，弹力带版本更适合膝盖轨迹提示。', 1
+FROM exerciseguides s, exerciseguides t
+WHERE s.actionname = '徒手深蹲' AND t.actionname = '弹力带深蹲';
+
+INSERT INTO fooditems (
+    name, category, calories_per100g, protein_per100g, carbohydrate_per100g, fat_per100g, tags, scene
+) VALUES
+('鸡蛋', '低脂蛋白', 143, 12.6, 1.1, 9.5, '早餐,便利店,高蛋白', '通用'),
+('鸡胸肉', '低脂蛋白', 165, 31.0, 0.0, 3.6, '增肌,减脂,备餐', '家庭做饭'),
+('北豆腐', '低脂蛋白', 116, 10.9, 3.0, 6.8, '素食友好,经济', '通用'),
+('希腊酸奶', '低脂蛋白', 95, 9.0, 3.8, 4.0, '加餐,训练后', '便利店'),
+('米饭', '高蛋白主食', 116, 2.6, 25.9, 0.3, '主食,食堂', '通用'),
+('燕麦', '高蛋白主食', 389, 16.9, 66.3, 6.9, '早餐,控糖友好', '家庭做饭'),
+('红薯', '高蛋白主食', 86, 1.6, 20.1, 0.1, '减脂,饱腹', '通用'),
+('西兰花', '蔬菜', 34, 2.8, 6.6, 0.4, '高纤维,低热量', '通用'),
+('香蕉', '水果', 89, 1.1, 22.8, 0.3, '训练前,便利店', '便利店'),
+('无糖豆浆', '饮品', 31, 3.0, 1.2, 1.6, '早餐,素食友好', '便利店');
+
+INSERT INTO mealtemplates (
+    name, meal_type, goal, scene, target_calories, description, foods
+) VALUES
+('稳定早餐', '早餐', '通用', '通用', 430, '提供上午能量和基础蛋白，适合训练日与工作日。', '燕麦 + 鸡蛋 + 无糖豆浆 + 香蕉'),
+('食堂减脂午餐', '午餐', '减脂', '食堂', 620, '控制油脂和酱汁，保留主食保证下午状态。', '半份米饭 + 鸡胸/鱼虾 + 两份蔬菜 + 清汤'),
+('增肌训练后晚餐', '晚餐', '增肌', '家庭做饭', 760, '训练后补足蛋白和主食，帮助恢复和增肌。', '米饭 + 鸡胸肉/牛肉 + 西兰花 + 酸奶'),
+('便利店加餐', '加餐', '通用', '便利店', 280, '无法正餐时先补蛋白和易消化碳水。', '希腊酸奶 + 香蕉 + 茶叶蛋'),
+('外卖均衡套餐', '午餐', '通用', '外卖', 680, '外卖场景优先选择清淡蛋白和可控主食。', '少油盖饭 + 加蔬菜 + 无糖饮料');
+
+INSERT INTO foodreplacements (
+    source_food, replacement_food, reason, category
+) VALUES
+('鸡胸肉', '鱼虾、瘦牛肉、鸡蛋、北豆腐', '同属优质蛋白，可按预算和口味替换。', '低脂蛋白'),
+('米饭', '燕麦、红薯、土豆、玉米', '同属主食，训练日前后可优先保留。', '高蛋白主食'),
+('奶制品', '无糖豆浆、北豆腐、鸡蛋', '乳糖不耐时用豆制品或鸡蛋补足蛋白。', '低脂蛋白'),
+('含糖饮料', '水、无糖茶、黑咖啡', '减少液体热量，优先保证饮水。', '饮品');
+
+INSERT INTO eatingscenarios (
+    name, goal, strategy, avoid, example
+) VALUES
+('食堂', '通用', '先选蛋白，再选蔬菜，主食按训练日保留半份到一份。', '油炸主菜、浓稠酱汁、含糖饮料。', '米饭半份 + 鸡蛋/鱼虾 + 两份蔬菜 + 清汤'),
+('便利店', '通用', '组合蛋白、主食和水果，避免只吃零食。', '甜面包、炸鸡、奶茶、薯片。', '茶叶蛋 + 希腊酸奶 + 香蕉 + 无糖豆浆'),
+('外卖', '减脂', '选择少油蛋白套餐，备注少油少酱，额外加蔬菜。', '炸物、重油拌饭、双主食套餐。', '鸡胸/牛肉饭 + 半份饭 + 加青菜 + 无糖饮料'),
+('家庭做饭', '增肌', '提前备好蛋白和主食，训练后不用临时点高油外卖。', '训练后空腹太久、高油夜宵。', '米饭 + 鸡胸/牛肉 + 西兰花 + 酸奶');
+
 SELECT setval(pg_get_serial_sequence('notices', 'id'), COALESCE((SELECT MAX(id) FROM notices), 1), TRUE);
 SELECT setval(pg_get_serial_sequence('articles', 'id'), COALESCE((SELECT MAX(id) FROM articles), 1), TRUE);
 SELECT setval(pg_get_serial_sequence('plantaskrecords', 'id'), COALESCE((SELECT MAX(id) FROM plantaskrecords), 1), TRUE);
 SELECT setval(pg_get_serial_sequence('nutritionrecommendationhistories', 'id'), COALESCE((SELECT MAX(id) FROM nutritionrecommendationhistories), 1), TRUE);
+SELECT setval(pg_get_serial_sequence('trainingcycles', 'id'), COALESCE((SELECT MAX(id) FROM trainingcycles), 1), TRUE);
+SELECT setval(pg_get_serial_sequence('planadjustmentrecords', 'id'), COALESCE((SELECT MAX(id) FROM planadjustmentrecords), 1), TRUE);
+SELECT setval(pg_get_serial_sequence('exercisealternatives', 'id'), COALESCE((SELECT MAX(id) FROM exercisealternatives), 1), TRUE);
+SELECT setval(pg_get_serial_sequence('fooditems', 'id'), COALESCE((SELECT MAX(id) FROM fooditems), 1), TRUE);
+SELECT setval(pg_get_serial_sequence('mealtemplates', 'id'), COALESCE((SELECT MAX(id) FROM mealtemplates), 1), TRUE);
+SELECT setval(pg_get_serial_sequence('foodreplacements', 'id'), COALESCE((SELECT MAX(id) FROM foodreplacements), 1), TRUE);
+SELECT setval(pg_get_serial_sequence('eatingscenarios', 'id'), COALESCE((SELECT MAX(id) FROM eatingscenarios), 1), TRUE);

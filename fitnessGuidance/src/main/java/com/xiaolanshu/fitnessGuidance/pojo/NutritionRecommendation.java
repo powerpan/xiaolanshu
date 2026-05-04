@@ -27,4 +27,7 @@ public class NutritionRecommendation {
     private ArrayList<String> replacements;
     private ArrayList<String> shoppingList;
     private ArrayList<String> watchouts;
+    private ArrayList<String> mealTemplates;
+    private ArrayList<String> eatingScenarios;
+    private ArrayList<String> foodReplacements;
 }

@@ -21,4 +21,7 @@ public class ExerciseGuide {
     private String commonMistakes;//常见错误
     private String suitableFor;//适合人群
     private String alternatives;//替代动作
+    private Integer qualityScore;//内容完整度评分
+    private Boolean missingImage;//是否缺少管理员上传图片
+    private Boolean incomplete;//是否缺少关键内容字段
 }

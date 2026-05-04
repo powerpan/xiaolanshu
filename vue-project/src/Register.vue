@@ -12,6 +12,7 @@ import {
   TrendCharts,
   User,
 } from '@element-plus/icons-vue'
+import yueluLogo from './assets/yuelu-logo.png'
 import api, { formBody } from './services/api'
 
 const router = useRouter()
@@ -21,7 +22,7 @@ const password = ref('')
 const loading = ref(false)
 
 const isLogin = () => mode.value === 'login'
-const authTitle = computed(() => (isLogin() ? '欢迎回到小蓝书' : '创建训练账号'))
+const authTitle = computed(() => (isLogin() ? '欢迎回到跃鹿运动' : '创建训练账号'))
 const authSubtitle = computed(() => (
   isLogin()
     ? '继续查看训练计划、动作指导和最近打卡复盘。'
@@ -100,17 +101,11 @@ const switchMode = () => {
   <main class="auth-page">
     <section class="auth-hero">
       <div class="brand-line">
-        <span class="brand-mark">XL</span>
+        <img class="brand-mark" :src="yueluLogo" alt="跃鹿运动标识">
         <div>
-          <strong>小蓝书</strong>
-          <small>Fitness Planning OS</small>
+          <strong>跃鹿运动</strong>
+          <small>Yuelu Fitness Planning OS</small>
         </div>
-      </div>
-
-      <div class="hero-copy">
-        <p>Personal training workspace</p>
-        <h1>把训练计划、动作学习和复盘数据放到同一个产品里</h1>
-        <span>围绕个人目标生成训练安排，结合动作指导、饮食建议和打卡记录，让每天的训练都有明确下一步。</span>
       </div>
 
       <div class="feature-grid">
@@ -189,6 +184,7 @@ const switchMode = () => {
 
 <style scoped>
 .auth-page {
+  position: relative;
   min-height: 100svh;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(360px, 440px);
@@ -196,13 +192,27 @@ const switchMode = () => {
   align-items: center;
   padding: clamp(12px, 2vw, 28px);
   background:
-    linear-gradient(110deg, rgba(36, 59, 56, 0.96) 0 48%, transparent 48%),
-    linear-gradient(135deg, #f6f8f1 0%, #eef5ef 52%, #f9efd9 100%);
-  color: #17211c;
+    linear-gradient(110deg, rgba(58, 33, 23, 0.97) 0 48%, transparent 48%),
+    linear-gradient(135deg, #fffaf4 0%, #fff2e3 54%, #f7e4d2 100%);
+  color: #2b211c;
   overflow-x: hidden;
 }
 
+.auth-page::before {
+  content: "";
+  position: absolute;
+  left: clamp(18px, 6vw, 92px);
+  bottom: clamp(-110px, -8vw, -42px);
+  width: min(58vw, 700px);
+  aspect-ratio: 2 / 3;
+  background: url('./assets/yuelu-logo.png') center / contain no-repeat;
+  opacity: 0.16;
+  pointer-events: none;
+}
+
 .auth-hero {
+  position: relative;
+  z-index: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -210,6 +220,11 @@ const switchMode = () => {
   gap: 22px;
   padding: clamp(18px, 4vw, 50px);
   color: #fff;
+}
+
+.auth-card {
+  position: relative;
+  z-index: 1;
 }
 
 .brand-line {
@@ -224,12 +239,10 @@ const switchMode = () => {
   width: 50px;
   height: 50px;
   border-radius: 8px;
-  display: grid;
-  place-items: center;
-  background: linear-gradient(135deg, #f2c35d, #85d4ff);
-  color: #17211c;
-  font-weight: 900;
-  letter-spacing: 0;
+  display: block;
+  background: rgba(255, 255, 255, 0.94);
+  object-fit: cover;
+  object-position: center 54%;
   box-shadow: 0 14px 30px rgba(0, 0, 0, 0.18);
 }
 
@@ -286,17 +299,17 @@ const switchMode = () => {
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 8px;
   padding: 14px;
-  background: rgba(20, 50, 45, 0.76);
+  background: rgba(83, 43, 24, 0.76);
   backdrop-filter: blur(12px);
   display: grid;
   gap: 10px;
-  box-shadow: 0 14px 34px rgba(12, 32, 28, 0.18);
+  box-shadow: 0 14px 34px rgba(47, 28, 18, 0.18);
   transition: transform 220ms ease, background 220ms ease;
 }
 
 .feature-grid article:hover {
   transform: translateY(-4px);
-  background: rgba(23, 79, 66, 0.82);
+  background: rgba(122, 55, 27, 0.84);
 }
 
 .feature-grid .el-icon {
@@ -306,7 +319,7 @@ const switchMode = () => {
   display: grid;
   place-items: center;
   background: rgba(255, 255, 255, 0.12);
-  color: #85d4ff;
+  color: #ffbd64;
   font-size: 19px;
 }
 
@@ -325,20 +338,20 @@ const switchMode = () => {
   max-width: 460px;
   justify-self: center;
   padding: clamp(20px, 3vw, 30px);
-  border: 1px solid #d9ded6;
+  border: 1px solid #eadfd4;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 24px 80px rgba(29, 42, 36, 0.12);
+  box-shadow: 0 24px 80px rgba(84, 62, 48, 0.12);
   backdrop-filter: blur(18px);
 }
 
 .product-preview {
   margin-bottom: 20px;
-  border: 1px solid #dfe5d9;
+  border: 1px solid #eadfd4;
   border-radius: 8px;
   padding: 14px;
   background:
-    linear-gradient(135deg, #173f37, #2c8f72),
+    linear-gradient(135deg, #3a2117, #c65a1a),
     repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.08) 0 1px, transparent 1px 42px);
   color: #fff;
   display: grid;
@@ -392,8 +405,8 @@ const switchMode = () => {
   display: grid;
   place-items: center;
   background:
-    radial-gradient(circle at 50% 50%, #1d5a4e 0 57%, transparent 58%),
-    conic-gradient(#85d4ff 0 84%, rgba(255, 255, 255, 0.18) 84% 100%);
+    radial-gradient(circle at 50% 50%, #5a2c1b 0 57%, transparent 58%),
+    conic-gradient(#ffbd64 0 84%, rgba(255, 255, 255, 0.18) 84% 100%);
   box-shadow: 0 18px 34px rgba(0, 0, 0, 0.16);
 }
 
@@ -458,7 +471,7 @@ const switchMode = () => {
 .auth-heading span {
   display: block;
   margin: 8px 0 22px;
-  color: #607169;
+  color: #71645b;
   line-height: 1.7;
 }
 
@@ -470,7 +483,7 @@ const switchMode = () => {
 .auth-form label {
   display: grid;
   gap: 8px;
-  color: #33423b;
+  color: #4d4038;
   font-weight: 700;
   min-width: 0;
 }
@@ -489,7 +502,7 @@ const switchMode = () => {
   width: 100%;
   border: 0;
   background: transparent;
-  color: #174f42;
+  color: #8a3d12;
   font-weight: 800;
   margin-top: 14px;
   cursor: pointer;
@@ -501,8 +514,8 @@ const switchMode = () => {
     align-content: start;
     gap: 14px;
     background:
-      linear-gradient(180deg, rgba(36, 59, 56, 0.98) 0 38%, #f6f8f1 38%),
-      linear-gradient(135deg, #f6f8f1 0%, #eef5ef 52%, #f9efd9 100%);
+      linear-gradient(180deg, rgba(58, 33, 23, 0.98) 0 38%, #fffaf4 38%),
+      linear-gradient(135deg, #fffaf4 0%, #fff2e3 54%, #f7e4d2 100%);
   }
 
   .auth-hero {

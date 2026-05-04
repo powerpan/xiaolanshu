@@ -55,7 +55,7 @@ public class ExerciseGuideController {
     public Result<ArrayList<ExerciseGuide>> list(@RequestHeader(name = "Authorization", required = false) String authorization,
                                                  String jwttoken, String actionPattern, String equipment, Boolean missingImageOnly,
                                                  Boolean incompleteOnly, Boolean missingStepsOnly, Boolean missingTipsOnly,
-                                                 Boolean missingMistakesOnly) {
+                                                 Boolean missingMistakesOnly, Boolean missingAlternativesOnly) {
         try {
             Map<String, Object> claims = Jwtutil.parseToken(resolveToken(authorization, jwttoken));
         } catch (Exception e) {
@@ -68,8 +68,24 @@ public class ExerciseGuideController {
                 incompleteOnly,
                 missingStepsOnly,
                 missingTipsOnly,
-                missingMistakesOnly
+                missingMistakesOnly,
+                missingAlternativesOnly
         ));
+    }
+
+    @GetMapping("/alternatives")
+    public Result<ArrayList<ExerciseGuide>> alternatives(@RequestHeader(name = "Authorization", required = false) String authorization,
+                                                         String jwttoken, String actionPattern, String preferredEquipment,
+                                                         Integer currentGuideId, Integer limit) {
+        try {
+            Map<String, Object> claims = Jwtutil.parseToken(resolveToken(authorization, jwttoken));
+        } catch (Exception e) {
+            return Result.error("未登录");
+        }
+        if (actionPattern == null || actionPattern.isBlank()) {
+            return Result.error("动作模式不能为空");
+        }
+        return Result.success(exerciseGuideService.listAlternativeGuides(actionPattern, preferredEquipment, currentGuideId, limit));
     }
 
     @PostMapping("/addguide")

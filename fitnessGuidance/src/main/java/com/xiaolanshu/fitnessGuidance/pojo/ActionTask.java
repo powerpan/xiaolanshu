@@ -2,6 +2,8 @@ package com.xiaolanshu.fitnessGuidance.pojo;
 
 import lombok.Data;
 
+import java.util.ArrayList;
+
 @Data
 public class ActionTask {
     private String actionPattern;//动作模式
@@ -33,4 +35,5 @@ public class ActionTask {
     private String commonMistakes; //常见错误
     private String suitableFor; //适合人群
     private String alternatives; //动作库替代动作
+    private ArrayList<ExerciseGuide> alternativeGuides; //可点击替换动作
 }

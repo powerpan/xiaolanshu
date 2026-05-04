@@ -1,13 +1,17 @@
 package com.xiaolanshu.fitnessGuidance.controller;
 
+import com.xiaolanshu.fitnessGuidance.mapper.NutritionLibraryMapper;
+import com.xiaolanshu.fitnessGuidance.pojo.EatingScenario;
+import com.xiaolanshu.fitnessGuidance.pojo.FoodItem;
+import com.xiaolanshu.fitnessGuidance.pojo.FoodReplacement;
+import com.xiaolanshu.fitnessGuidance.pojo.MealTemplate;
+import com.xiaolanshu.fitnessGuidance.pojo.NutritionLibrary;
 import com.xiaolanshu.fitnessGuidance.pojo.NutritionRecommendation;
-import com.xiaolanshu.fitnessGuidance.pojo.NutritionRecommendationHistory;
 import com.xiaolanshu.fitnessGuidance.pojo.NutritionPreference;
 import com.xiaolanshu.fitnessGuidance.pojo.Result;
 import com.xiaolanshu.fitnessGuidance.pojo.User;
 import com.xiaolanshu.fitnessGuidance.pojo.UserProfile;
 import com.xiaolanshu.fitnessGuidance.service.NutritionPreferenceService;
-import com.xiaolanshu.fitnessGuidance.service.NutritionRecommendationHistoryService;
 import com.xiaolanshu.fitnessGuidance.service.UserProfileService;
 import com.xiaolanshu.fitnessGuidance.service.UserService;
 import com.xiaolanshu.fitnessGuidance.utils.Jwtutil;
@@ -31,7 +35,7 @@ public class NutritionController {
     private NutritionPreferenceService nutritionPreferenceService;
 
     @Autowired
-    private NutritionRecommendationHistoryService nutritionRecommendationHistoryService;
+    private NutritionLibraryMapper nutritionLibraryMapper;
 
     @GetMapping("/recommendation")
     public Result<NutritionRecommendation> recommendation(
@@ -46,7 +50,6 @@ public class NutritionController {
         UserProfile profile = userProfileService.getuserprofile(username);
         NutritionPreference preference = nutritionPreferenceService.getPreference(username);
         NutritionRecommendation recommendation = buildRecommendation(user, profile, preference);
-        nutritionRecommendationHistoryService.save(username, recommendation);
         return Result.success(recommendation);
     }
 
@@ -74,15 +77,139 @@ public class NutritionController {
         return Result.success();
     }
 
-    @GetMapping("/history")
-    public Result<ArrayList<NutritionRecommendationHistory>> history(
-            @RequestHeader(name = "Authorization", required = false) String authorization,
-            String jwttoken) {
+    @GetMapping("/library")
+    public Result<NutritionLibrary> library(@RequestHeader(name = "Authorization", required = false) String authorization,
+                                            String jwttoken) {
         String username = parseUsername(resolveToken(authorization, jwttoken));
         if (username == null) {
             return Result.error("未登录");
         }
-        return Result.success(nutritionRecommendationHistoryService.recent(username));
+        UserProfile profile = userProfileService.getuserprofile(username);
+        NutritionPreference preference = nutritionPreferenceService.getPreference(username);
+        return Result.success(buildNutritionLibrary(profile, preference));
+    }
+
+    @GetMapping("/admin/library")
+    public Result<NutritionLibrary> adminLibrary(@RequestHeader(name = "Authorization", required = false) String authorization,
+                                                 String jwttoken) {
+        Result authResult = validateAdmin(authorization, jwttoken);
+        if (authResult != null) {
+            return authResult;
+        }
+        NutritionLibrary library = new NutritionLibrary();
+        library.setFoodItems(nutritionLibraryMapper.listFoodItems(null));
+        library.setMealTemplates(nutritionLibraryMapper.listMealTemplates(null, null));
+        library.setFoodReplacements(nutritionLibraryMapper.listFoodReplacements());
+        library.setEatingScenarios(nutritionLibraryMapper.listEatingScenarios(null));
+        return Result.success(library);
+    }
+
+    @PostMapping("/admin/fooditem")
+    public Result addFoodItem(@RequestHeader(name = "Authorization", required = false) String authorization,
+                              String jwttoken, FoodItem item) {
+        Result authResult = validateAdmin(authorization, jwttoken);
+        if (authResult != null) return authResult;
+        nutritionLibraryMapper.insertFoodItem(item);
+        return Result.success();
+    }
+
+    @PutMapping("/admin/fooditem")
+    public Result updateFoodItem(@RequestHeader(name = "Authorization", required = false) String authorization,
+                                 String jwttoken, FoodItem item) {
+        Result authResult = validateAdmin(authorization, jwttoken);
+        if (authResult != null) return authResult;
+        nutritionLibraryMapper.updateFoodItem(item);
+        return Result.success();
+    }
+
+    @DeleteMapping("/admin/fooditem")
+    public Result deleteFoodItem(@RequestHeader(name = "Authorization", required = false) String authorization,
+                                 String jwttoken, Integer id) {
+        Result authResult = validateAdmin(authorization, jwttoken);
+        if (authResult != null) return authResult;
+        nutritionLibraryMapper.deleteFoodItem(id);
+        return Result.success();
+    }
+
+    @PostMapping("/admin/mealtemplate")
+    public Result addMealTemplate(@RequestHeader(name = "Authorization", required = false) String authorization,
+                                  String jwttoken, MealTemplate item) {
+        Result authResult = validateAdmin(authorization, jwttoken);
+        if (authResult != null) return authResult;
+        nutritionLibraryMapper.insertMealTemplate(item);
+        return Result.success();
+    }
+
+    @PutMapping("/admin/mealtemplate")
+    public Result updateMealTemplate(@RequestHeader(name = "Authorization", required = false) String authorization,
+                                     String jwttoken, MealTemplate item) {
+        Result authResult = validateAdmin(authorization, jwttoken);
+        if (authResult != null) return authResult;
+        nutritionLibraryMapper.updateMealTemplate(item);
+        return Result.success();
+    }
+
+    @DeleteMapping("/admin/mealtemplate")
+    public Result deleteMealTemplate(@RequestHeader(name = "Authorization", required = false) String authorization,
+                                     String jwttoken, Integer id) {
+        Result authResult = validateAdmin(authorization, jwttoken);
+        if (authResult != null) return authResult;
+        nutritionLibraryMapper.deleteMealTemplate(id);
+        return Result.success();
+    }
+
+    @PostMapping("/admin/foodreplacement")
+    public Result addFoodReplacement(@RequestHeader(name = "Authorization", required = false) String authorization,
+                                     String jwttoken, FoodReplacement item) {
+        Result authResult = validateAdmin(authorization, jwttoken);
+        if (authResult != null) return authResult;
+        nutritionLibraryMapper.insertFoodReplacement(item);
+        return Result.success();
+    }
+
+    @PutMapping("/admin/foodreplacement")
+    public Result updateFoodReplacement(@RequestHeader(name = "Authorization", required = false) String authorization,
+                                        String jwttoken, FoodReplacement item) {
+        Result authResult = validateAdmin(authorization, jwttoken);
+        if (authResult != null) return authResult;
+        nutritionLibraryMapper.updateFoodReplacement(item);
+        return Result.success();
+    }
+
+    @DeleteMapping("/admin/foodreplacement")
+    public Result deleteFoodReplacement(@RequestHeader(name = "Authorization", required = false) String authorization,
+                                        String jwttoken, Integer id) {
+        Result authResult = validateAdmin(authorization, jwttoken);
+        if (authResult != null) return authResult;
+        nutritionLibraryMapper.deleteFoodReplacement(id);
+        return Result.success();
+    }
+
+    @PostMapping("/admin/eatingscenario")
+    public Result addEatingScenario(@RequestHeader(name = "Authorization", required = false) String authorization,
+                                    String jwttoken, EatingScenario item) {
+        Result authResult = validateAdmin(authorization, jwttoken);
+        if (authResult != null) return authResult;
+        nutritionLibraryMapper.insertEatingScenario(item);
+        return Result.success();
+    }
+
+    @PutMapping("/admin/eatingscenario")
+    public Result updateEatingScenario(@RequestHeader(name = "Authorization", required = false) String authorization,
+                                       String jwttoken, EatingScenario item) {
+        Result authResult = validateAdmin(authorization, jwttoken);
+        if (authResult != null) return authResult;
+        nutritionLibraryMapper.updateEatingScenario(item);
+        return Result.success();
+    }
+
+    @DeleteMapping("/admin/eatingscenario")
+    public Result deleteEatingScenario(@RequestHeader(name = "Authorization", required = false) String authorization,
+                                       String jwttoken, Integer id) {
+        Result authResult = validateAdmin(authorization, jwttoken);
+        if (authResult != null) return authResult;
+        nutritionLibraryMapper.deleteEatingScenario(id);
+        return Result.success();
     }
 
     private NutritionRecommendation buildRecommendation(User user, UserProfile profile, NutritionPreference preference) {
@@ -193,7 +320,61 @@ public class NutritionController {
         }
         recommendation.setWatchouts(watchouts);
 
+        NutritionLibrary library = buildNutritionLibrary(profile, preference);
+        recommendation.setMealTemplates(formatMealTemplates(library.getMealTemplates()));
+        recommendation.setEatingScenarios(formatEatingScenarios(library.getEatingScenarios()));
+        recommendation.setFoodReplacements(formatFoodReplacements(library.getFoodReplacements()));
+
         return recommendation;
+    }
+
+    private NutritionLibrary buildNutritionLibrary(UserProfile profile, NutritionPreference preference) {
+        String goal = profile != null && profile.getFitnessGoal() != null ? profile.getFitnessGoal() : "保持健康";
+        String scene = resolveEatingScene(preference);
+        NutritionLibrary library = new NutritionLibrary();
+        library.setFoodItems(nutritionLibraryMapper.listFoodItems(null));
+        library.setMealTemplates(nutritionLibraryMapper.listMealTemplates(goal, scene));
+        library.setFoodReplacements(nutritionLibraryMapper.listFoodReplacements());
+        library.setEatingScenarios(nutritionLibraryMapper.listEatingScenarios(goal));
+        return library;
+    }
+
+    private String resolveEatingScene(NutritionPreference preference) {
+        if (preference != null && preference.getEatingOutFrequency() != null && preference.getEatingOutFrequency().contains("经常")) {
+            return "外卖";
+        }
+        return "通用";
+    }
+
+    private ArrayList<String> formatMealTemplates(ArrayList<MealTemplate> templates) {
+        ArrayList<String> result = new ArrayList<>();
+        if (templates == null) return result;
+        for (MealTemplate template : templates) {
+            result.add(template.getMealType() + "｜" + template.getName() + "：" + template.getDescription()
+                    + "（" + template.getFoods() + "）");
+        }
+        return result;
+    }
+
+    private ArrayList<String> formatEatingScenarios(ArrayList<EatingScenario> scenarios) {
+        ArrayList<String> result = new ArrayList<>();
+        if (scenarios == null) return result;
+        for (EatingScenario scenario : scenarios) {
+            result.add(scenario.getName() + "：" + scenario.getStrategy()
+                    + "；少选：" + scenario.getAvoid()
+                    + "；示例：" + scenario.getExample());
+        }
+        return result;
+    }
+
+    private ArrayList<String> formatFoodReplacements(ArrayList<FoodReplacement> replacements) {
+        ArrayList<String> result = new ArrayList<>();
+        if (replacements == null) return result;
+        for (FoodReplacement replacement : replacements) {
+            result.add(replacement.getSourceFood() + " → " + replacement.getReplacementFood()
+                    + "：" + replacement.getReason());
+        }
+        return result;
     }
 
     private String buildSummary(String goal, int calories, int protein, int carbs, int fat) {
@@ -288,5 +469,17 @@ public class NutritionController {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    private Result validateAdmin(String authorization, String jwttoken) {
+        String username = parseUsername(resolveToken(authorization, jwttoken));
+        if (username == null) {
+            return Result.error("未登录");
+        }
+        User user = userService.findUsername(username);
+        if (user == null || !"ADMIN".equals(user.getIdentity())) {
+            return Result.error("无相关权限");
+        }
+        return null;
     }
 }

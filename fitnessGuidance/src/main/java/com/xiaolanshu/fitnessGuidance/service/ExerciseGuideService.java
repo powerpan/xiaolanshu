@@ -10,7 +10,10 @@ public interface ExerciseGuideService {
 
     ArrayList<ExerciseGuide> listexerciseguides(String actionPattern, String equipment, Boolean missingImageOnly,
                                                 Boolean incompleteOnly, Boolean missingStepsOnly,
-                                                Boolean missingTipsOnly, Boolean missingMistakesOnly);
+                                                Boolean missingTipsOnly, Boolean missingMistakesOnly,
+                                                Boolean missingAlternativesOnly);
+
+    ArrayList<ExerciseGuide> listAlternativeGuides(String actionPattern, String preferredEquipment, Integer currentGuideId, Integer limit);
 
     void addExerciseGuide(ExerciseGuide exerciseGuide);
 
