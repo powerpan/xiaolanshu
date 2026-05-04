@@ -5,6 +5,7 @@ import com.xiaolanshu.fitnessGuidance.service.*;
 import com.xiaolanshu.fitnessGuidance.utils.Jwtutil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
@@ -33,6 +34,12 @@ public class FitnessPlanController {
 
     @Autowired
     private ExerciseGuideService exerciseGuideService;
+
+    @Autowired
+    private PlanTaskRecordService planTaskRecordService;
+
+    @Autowired
+    private FitnessCheckinService fitnessCheckinService;
 
     @GetMapping("/getsplitmode")
     public Result<String> getsplitMode(@RequestHeader(name = "Authorization", required = false) String authorization,
@@ -172,11 +179,71 @@ public class FitnessPlanController {
         return Result.success(actionTasks);
     }
 
+    @GetMapping("/taskrecords")
+    public Result<ArrayList<PlanTaskRecord>> taskRecords(@RequestHeader(name = "Authorization", required = false) String authorization,
+                                                         String jwttoken, Integer daytime) {
+        String username = parseUsername(resolveToken(authorization, jwttoken));
+        if (username == null) {
+            return Result.error("未登录");
+        }
+        return Result.success(planTaskRecordService.listToday(username, daytime));
+    }
+
+    @PutMapping("/taskrecord")
+    public Result saveTaskRecord(@RequestHeader(name = "Authorization", required = false) String authorization,
+                                 String jwttoken, PlanTaskRecord record) {
+        String username = parseUsername(resolveToken(authorization, jwttoken));
+        if (username == null) {
+            return Result.error("未登录");
+        }
+        planTaskRecordService.saveToday(username, record);
+        return Result.success();
+    }
+
+    @GetMapping("/insight")
+    public Result<TrainingPlanInsight> insight(@RequestHeader(name = "Authorization", required = false) String authorization,
+                                               String jwttoken) {
+        String username = parseUsername(resolveToken(authorization, jwttoken));
+        if (username == null) {
+            return Result.error("未登录");
+        }
+        UserProfile userProfile = userProfileService.getuserprofile(username);
+        if (userProfile == null) {
+            return Result.error("用户信息不存在");
+        }
+        CheckinStats stats = fitnessCheckinService.getStats(username);
+        Integer recordedTasks = planTaskRecordService.countThisWeek(username);
+        Integer completedTasks = planTaskRecordService.countCompletedThisWeek(username);
+        int completionRate = recordedTasks == null || recordedTasks == 0
+                ? 0
+                : (int) Math.round(completedTasks * 100.0 / recordedTasks);
+
+        TrainingPlanInsight insight = new TrainingPlanInsight();
+        insight.setWeeklyTarget(userProfile.getWeeklyFrequency());
+        insight.setRecordedTasks(recordedTasks == null ? 0 : recordedTasks);
+        insight.setCompletedTasks(completedTasks == null ? 0 : completedTasks);
+        insight.setCompletionRate(completionRate);
+        insight.setCurrentStreak(stats == null ? 0 : stats.getCurrentStreak());
+        insight.setRecommendation(resolvePlanRecommendation(userProfile, stats, completionRate));
+        insight.setRecoveryHint(resolveRecoveryHint(stats, completionRate));
+        insight.setNextAdjustment(resolveNextAdjustment(userProfile, completionRate));
+        return Result.success(insight);
+    }
+
     private String resolveToken(String authorization, String jwttoken) {
         if (authorization != null && !authorization.isBlank()) {
             return authorization;
         }
         return jwttoken;
+    }
+
+    private String parseUsername(String token) {
+        try {
+            Map<String, Object> claims = Jwtutil.parseToken(token);
+            return String.valueOf(claims.get("username"));
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private void enrichTask(ActionTask task, UserProfile userProfile) {
@@ -270,5 +337,44 @@ public class FitnessPlanController {
             case "资深" -> "根据恢复状态安排强弱日，避免每次都堆到最高容量。";
             default -> "保持动作质量优先，再考虑增加容量。";
         };
+    }
+
+    private String resolvePlanRecommendation(UserProfile userProfile, CheckinStats stats, int completionRate) {
+        int currentStreak = stats == null || stats.getCurrentStreak() == null ? 0 : stats.getCurrentStreak();
+        if (completionRate == 0 && currentStreak == 0) {
+            return "本周还没有形成有效训练记录，先完成一次计划内训练，不建议额外加量。";
+        }
+        if (completionRate < 50) {
+            return "本周完成率偏低，优先把每个动作做到最低组数，减少临时加练。";
+        }
+        if (completionRate >= 85 && currentStreak >= 3) {
+            return "完成率和连续性较好，下次可选择一个主动作增加一组或小幅加重。";
+        }
+        return "当前执行稳定，保持计划频率，训练后继续记录动作完成情况。";
+    }
+
+    private String resolveRecoveryHint(CheckinStats stats, int completionRate) {
+        int averageMinutes = stats == null || stats.getAverageMinutes() == null ? 0 : stats.getAverageMinutes();
+        if (averageMinutes >= 70 && completionRate >= 80) {
+            return "最近训练时长偏高，建议至少保留 1 天恢复或灵活恢复训练。";
+        }
+        if (completionRate < 50) {
+            return "不要用一次超长训练弥补缺勤，先恢复稳定节奏。";
+        }
+        return "保持睡眠、水分和训练后蛋白补充，下一次训练前观察关节状态。";
+    }
+
+    private String resolveNextAdjustment(UserProfile userProfile, int completionRate) {
+        String goal = userProfile.getFitnessGoal();
+        if (completionRate >= 85 && ("增肌".equals(goal) || "提升力量".equals(goal))) {
+            return "下一次只给一个主动作加量，辅助动作保持原计划。";
+        }
+        if (completionRate >= 85) {
+            return "下一次可略缩短组间休息，提高训练密度。";
+        }
+        if (completionRate < 50) {
+            return "下一次降低到最低组数，先保证完整完成。";
+        }
+        return "下一次保持当前组数，重点观察动作质量。";
     }
 }

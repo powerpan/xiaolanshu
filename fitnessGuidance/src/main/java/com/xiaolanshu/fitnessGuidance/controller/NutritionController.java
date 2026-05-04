@@ -1,11 +1,13 @@
 package com.xiaolanshu.fitnessGuidance.controller;
 
 import com.xiaolanshu.fitnessGuidance.pojo.NutritionRecommendation;
+import com.xiaolanshu.fitnessGuidance.pojo.NutritionRecommendationHistory;
 import com.xiaolanshu.fitnessGuidance.pojo.NutritionPreference;
 import com.xiaolanshu.fitnessGuidance.pojo.Result;
 import com.xiaolanshu.fitnessGuidance.pojo.User;
 import com.xiaolanshu.fitnessGuidance.pojo.UserProfile;
 import com.xiaolanshu.fitnessGuidance.service.NutritionPreferenceService;
+import com.xiaolanshu.fitnessGuidance.service.NutritionRecommendationHistoryService;
 import com.xiaolanshu.fitnessGuidance.service.UserProfileService;
 import com.xiaolanshu.fitnessGuidance.service.UserService;
 import com.xiaolanshu.fitnessGuidance.utils.Jwtutil;
@@ -28,6 +30,9 @@ public class NutritionController {
     @Autowired
     private NutritionPreferenceService nutritionPreferenceService;
 
+    @Autowired
+    private NutritionRecommendationHistoryService nutritionRecommendationHistoryService;
+
     @GetMapping("/recommendation")
     public Result<NutritionRecommendation> recommendation(
             @RequestHeader(name = "Authorization", required = false) String authorization,
@@ -40,7 +45,9 @@ public class NutritionController {
         User user = userService.findUsername(username);
         UserProfile profile = userProfileService.getuserprofile(username);
         NutritionPreference preference = nutritionPreferenceService.getPreference(username);
-        return Result.success(buildRecommendation(user, profile, preference));
+        NutritionRecommendation recommendation = buildRecommendation(user, profile, preference);
+        nutritionRecommendationHistoryService.save(username, recommendation);
+        return Result.success(recommendation);
     }
 
     @GetMapping("/preference")
@@ -65,6 +72,17 @@ public class NutritionController {
         }
         nutritionPreferenceService.savePreference(username, preference);
         return Result.success();
+    }
+
+    @GetMapping("/history")
+    public Result<ArrayList<NutritionRecommendationHistory>> history(
+            @RequestHeader(name = "Authorization", required = false) String authorization,
+            String jwttoken) {
+        String username = parseUsername(resolveToken(authorization, jwttoken));
+        if (username == null) {
+            return Result.error("未登录");
+        }
+        return Result.success(nutritionRecommendationHistoryService.recent(username));
     }
 
     private NutritionRecommendation buildRecommendation(User user, UserProfile profile, NutritionPreference preference) {

@@ -256,3 +256,15 @@ MERGE INTO fitnesscheckins (
 ('demo', CURRENT_DATE, 35, '状态不错', '完成了上肢训练，俯卧撑比上周稳定。', CURRENT_TIMESTAMP),
 ('demo', DATEADD('DAY', -1, CURRENT_DATE), 25, '轻松', '做了核心训练和拉伸。', DATEADD('DAY', -1, CURRENT_TIMESTAMP)),
 ('demo', DATEADD('DAY', -2, CURRENT_DATE), 40, '有挑战', '下肢训练比较累，休息时间需要拉长。', DATEADD('DAY', -2, CURRENT_TIMESTAMP));
+
+MERGE INTO plantaskrecords (
+    username, plan_date, daytime, action_index, actionpattern, actionname, equipment, completed, actual_sets, actual_reps, difficulty_score, note, updated_at
+) KEY(username, plan_date, daytime, action_index) VALUES
+('demo', CURRENT_DATE, 1, 0, '水平推', '俯卧撑', '徒手', TRUE, 3, 12, 6, '动作稳定，最后一组略累。', CURRENT_TIMESTAMP),
+('demo', CURRENT_DATE, 1, 1, '水平拉', '桌下反向划船', '徒手', TRUE, 3, 10, 7, '肩胛控制比上周好。', CURRENT_TIMESTAMP),
+('demo', CURRENT_DATE, 1, 2, '核心稳定', '平板支撑', '徒手', FALSE, 2, 30, 5, '准备晚些补做。', CURRENT_TIMESTAMP);
+
+MERGE INTO nutritionrecommendationhistories (
+    id, username, targetcalories, proteingrams, carbohydrategrams, fatgrams, preferencesummary, summary, created_at
+) KEY(id) VALUES
+(1, 'demo', 1960, 93, 260, 50, '偏好「均衡饮食」，预算「中等」，外食频率「偶尔外食」。', '当前目标「保持健康」建议日摄入约 1960 kcal，优先保证蛋白质和规律三餐。', CURRENT_TIMESTAMP);

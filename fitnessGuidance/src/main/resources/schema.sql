@@ -136,6 +136,26 @@ CREATE TABLE IF NOT EXISTS fitnesscheckins (
 CREATE UNIQUE INDEX IF NOT EXISTS uk_fitnesscheckins_username_date
     ON fitnesscheckins(username, checkin_date);
 
+CREATE TABLE IF NOT EXISTS plantaskrecords (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50) NOT NULL,
+    plan_date DATE NOT NULL,
+    daytime INT NOT NULL,
+    action_index INT NOT NULL,
+    actionpattern VARCHAR(100),
+    actionname VARCHAR(100),
+    equipment VARCHAR(50),
+    completed BOOLEAN DEFAULT FALSE,
+    actual_sets INT,
+    actual_reps INT,
+    difficulty_score INT,
+    note TEXT,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_plantaskrecords_key
+    ON plantaskrecords(username, plan_date, daytime, action_index);
+
 CREATE TABLE IF NOT EXISTS nutritionpreferences (
     id INT AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(50) NOT NULL UNIQUE,
@@ -145,4 +165,16 @@ CREATE TABLE IF NOT EXISTS nutritionpreferences (
     eatingoutfrequency VARCHAR(50) DEFAULT '偶尔外食',
     mealcount INT DEFAULT 4,
     tastepreference VARCHAR(100) DEFAULT '清淡'
+);
+
+CREATE TABLE IF NOT EXISTS nutritionrecommendationhistories (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50) NOT NULL,
+    targetcalories INT,
+    proteingrams INT,
+    carbohydrategrams INT,
+    fatgrams INT,
+    preferencesummary TEXT,
+    summary TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

@@ -4,11 +4,23 @@ export const getExerciseGuide = ({ actionPattern, equipment }) => unwrap(api.get
   params: withToken({ actionPattern, equipment }),
 }))
 
-export const listExerciseGuides = ({ actionPattern, equipment, missingImageOnly } = {}) => unwrap(api.get('/exerciseguide/list', {
+export const listExerciseGuides = ({
+  actionPattern,
+  equipment,
+  missingImageOnly,
+  incompleteOnly,
+  missingStepsOnly,
+  missingTipsOnly,
+  missingMistakesOnly,
+} = {}) => unwrap(api.get('/exerciseguide/list', {
   params: withToken({
     actionPattern: actionPattern || undefined,
     equipment: equipment || undefined,
     missingImageOnly: missingImageOnly || undefined,
+    incompleteOnly: incompleteOnly || undefined,
+    missingStepsOnly: missingStepsOnly || undefined,
+    missingTipsOnly: missingTipsOnly || undefined,
+    missingMistakesOnly: missingMistakesOnly || undefined,
   }),
 }))
 

@@ -2,6 +2,8 @@
 -- 适用于新建或可重置的 openGauss 数据库。执行前请确认目标库中的同名表可以被删除。
 
 DROP TABLE IF EXISTS nutritionpreferences;
+DROP TABLE IF EXISTS nutritionrecommendationhistories;
+DROP TABLE IF EXISTS plantaskrecords;
 DROP TABLE IF EXISTS fitnesscheckins;
 DROP TABLE IF EXISTS exerciseguides;
 DROP TABLE IF EXISTS actiondetails;
@@ -139,6 +141,26 @@ CREATE TABLE fitnesscheckins (
 CREATE UNIQUE INDEX uk_fitnesscheckins_username_date
     ON fitnesscheckins(username, checkin_date);
 
+CREATE TABLE plantaskrecords (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(50) NOT NULL,
+    plan_date DATE NOT NULL,
+    daytime INT NOT NULL,
+    action_index INT NOT NULL,
+    actionpattern VARCHAR(100),
+    actionname VARCHAR(100),
+    equipment VARCHAR(50),
+    completed BOOLEAN DEFAULT FALSE,
+    actual_sets INT,
+    actual_reps INT,
+    difficulty_score INT,
+    note TEXT,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE UNIQUE INDEX uk_plantaskrecords_key
+    ON plantaskrecords(username, plan_date, daytime, action_index);
+
 CREATE TABLE nutritionpreferences (
     id SERIAL PRIMARY KEY,
     username VARCHAR(50) NOT NULL UNIQUE,
@@ -148,6 +170,18 @@ CREATE TABLE nutritionpreferences (
     eatingoutfrequency VARCHAR(50) DEFAULT '偶尔外食',
     mealcount INT DEFAULT 4,
     tastepreference VARCHAR(100) DEFAULT '清淡'
+);
+
+CREATE TABLE nutritionrecommendationhistories (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(50) NOT NULL,
+    targetcalories INT,
+    proteingrams INT,
+    carbohydrategrams INT,
+    fatgrams INT,
+    preferencesummary TEXT,
+    summary TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 INSERT INTO users (
@@ -406,5 +440,19 @@ INSERT INTO fitnesscheckins (
 ('demo', CURRENT_DATE - INTERVAL '1 day', 25, '轻松', '做了核心训练和拉伸。', CURRENT_TIMESTAMP - INTERVAL '1 day'),
 ('demo', CURRENT_DATE - INTERVAL '2 days', 40, '有挑战', '下肢训练比较累，休息时间需要拉长。', CURRENT_TIMESTAMP - INTERVAL '2 days');
 
+INSERT INTO plantaskrecords (
+    username, plan_date, daytime, action_index, actionpattern, actionname, equipment, completed, actual_sets, actual_reps, difficulty_score, note, updated_at
+) VALUES
+('demo', CURRENT_DATE, 1, 0, '水平推', '俯卧撑', '徒手', TRUE, 3, 12, 6, '动作稳定，最后一组略累。', CURRENT_TIMESTAMP),
+('demo', CURRENT_DATE, 1, 1, '水平拉', '桌下反向划船', '徒手', TRUE, 3, 10, 7, '肩胛控制比上周好。', CURRENT_TIMESTAMP),
+('demo', CURRENT_DATE, 1, 2, '核心稳定', '平板支撑', '徒手', FALSE, 2, 30, 5, '准备晚些补做。', CURRENT_TIMESTAMP);
+
+INSERT INTO nutritionrecommendationhistories (
+    username, targetcalories, proteingrams, carbohydrategrams, fatgrams, preferencesummary, summary, created_at
+) VALUES
+('demo', 1960, 93, 260, 50, '偏好「均衡饮食」，预算「中等」，外食频率「偶尔外食」。', '当前目标「保持健康」建议日摄入约 1960 kcal，优先保证蛋白质和规律三餐。', CURRENT_TIMESTAMP);
+
 SELECT setval(pg_get_serial_sequence('notices', 'id'), COALESCE((SELECT MAX(id) FROM notices), 1), TRUE);
 SELECT setval(pg_get_serial_sequence('articles', 'id'), COALESCE((SELECT MAX(id) FROM articles), 1), TRUE);
+SELECT setval(pg_get_serial_sequence('plantaskrecords', 'id'), COALESCE((SELECT MAX(id) FROM plantaskrecords), 1), TRUE);
+SELECT setval(pg_get_serial_sequence('nutritionrecommendationhistories', 'id'), COALESCE((SELECT MAX(id) FROM nutritionrecommendationhistories), 1), TRUE);

@@ -62,14 +62,18 @@ import {
 } from './services/exerciseGuideApi'
 import {
   getNutritionPreference,
+  getNutritionHistory,
   getNutritionRecommendation,
   updateNutritionPreference,
 } from './services/nutritionApi'
 import {
   getActionTasks,
   getCheckinStats,
+  getPlanTaskRecords,
   getSplitMode,
   getTodayCheckin,
+  getTrainingPlanInsight,
+  savePlanTaskRecord,
   saveTodayCheckin,
 } from './services/trainingApi'
 import {
@@ -107,6 +111,8 @@ const guideImageUploading = ref(false)
 const todayCheckin = ref(null)
 const checkinStats = ref(null)
 const nutrition = ref(null)
+const nutritionHistory = ref([])
+const planInsight = ref(null)
 const selectedArticle = ref(null)
 const selectedNotice = ref(null)
 const checkedTasks = ref({})
@@ -192,6 +198,10 @@ const guideFilters = reactive({
   actionPattern: '',
   equipment: '',
   missingImageOnly: false,
+  incompleteOnly: false,
+  missingStepsOnly: false,
+  missingTipsOnly: false,
+  missingMistakesOnly: false,
 })
 
 const guideAdminForm = reactive({
@@ -546,13 +556,28 @@ const persistTaskState = () => {
 
 const isTaskDone = (index) => Boolean(completedTaskMap.value[index])
 
-const toggleTaskDone = (index, value) => {
-  const current = { ...completedTaskMap.value, [index]: value }
+const toggleTaskDone = async (index, value) => {
+  const completed = Boolean(value)
+  const current = { ...completedTaskMap.value, [index]: completed }
   checkedTasks.value = {
     ...checkedTasks.value,
     [planCheckKey.value]: current,
   }
   persistTaskState()
+  const task = actionTasks.value[index] || {}
+  try {
+    await savePlanTaskRecord({
+      daytime: selectedDay.value,
+      actionIndex: index,
+      actionPattern: task.actionPattern || '',
+      actionName: task.actionName || '',
+      equipment: task.equipment || profile.value?.equipment || '',
+      completed,
+    })
+    await loadPlanInsight()
+  } catch (error) {
+    ElMessage.error(error.message || '动作完成记录保存失败')
+  }
 }
 
 const topicTone = (topic = '') => {
@@ -626,6 +651,24 @@ const loadPlan = async (day = selectedDay.value) => {
   ])
   splitMode.value = mode
   actionTasks.value = tasks || []
+  await Promise.allSettled([loadPlanTaskRecords(day), loadPlanInsight()])
+}
+
+const loadPlanTaskRecords = async (day = selectedDay.value) => {
+  const records = await getPlanTaskRecords(day)
+  const current = {}
+  ;(records || []).forEach((record) => {
+    current[record.actionIndex] = Boolean(record.completed)
+  })
+  checkedTasks.value = {
+    ...checkedTasks.value,
+    [planCheckKey.value]: current,
+  }
+  persistTaskState()
+}
+
+const loadPlanInsight = async () => {
+  planInsight.value = await getTrainingPlanInsight()
 }
 
 const loadGuide = async () => {
@@ -646,7 +689,15 @@ const loadGuideLibrary = async () => {
 }
 
 const clearGuideFilters = async () => {
-  Object.assign(guideFilters, { actionPattern: '', equipment: '', missingImageOnly: false })
+  Object.assign(guideFilters, {
+    actionPattern: '',
+    equipment: '',
+    missingImageOnly: false,
+    incompleteOnly: false,
+    missingStepsOnly: false,
+    missingTipsOnly: false,
+    missingMistakesOnly: false,
+  })
   await loadGuideLibrary()
 }
 
@@ -803,6 +854,7 @@ const loadCheckin = async () => {
 
 const loadNutrition = async () => {
   nutrition.value = await getNutritionRecommendation()
+  nutritionHistory.value = await getNutritionHistory()
 }
 
 const loadNutritionPreference = async () => {
@@ -904,8 +956,8 @@ const openView = async (key) => {
     if (key === 'articles') await loadArticles()
     if (key === 'plan') await loadPlan(selectedDay.value || 1)
     if (key === 'guide') await loadGuideLibrary()
-    if (key === 'checkin') await loadCheckin()
-    if (key === 'insights') await loadCheckin()
+    if (key === 'checkin') await Promise.all([loadCheckin(), loadPlanInsight()])
+    if (key === 'insights') await Promise.all([loadCheckin(), loadPlanInsight()])
     if (key === 'nutrition') await Promise.all([loadNutrition(), loadNutritionPreference()])
   } catch (error) {
     ElMessage.error(error.message || '加载失败')
@@ -1201,6 +1253,7 @@ const savePlanCheckin = async () => {
     note: `完成第 ${selectedDay.value} 天「${splitMode.value || '训练计划'}」：${completedTaskCount.value}/${actionTasks.value.length} 个动作。`,
   })
   await saveCheckin()
+  await loadPlanInsight()
 }
 
 const logout = () => {
@@ -1518,6 +1571,23 @@ onMounted(() => {
             </div>
             <el-button type="primary" :icon="Check" @click="savePlanCheckin">按完成情况打卡</el-button>
           </div>
+          <div class="plan-insight-grid" v-if="planInsight">
+            <article>
+              <span>本周动作完成率</span>
+              <strong>{{ planInsight.completionRate || 0 }}%</strong>
+              <p>{{ planInsight.completedTasks || 0 }}/{{ planInsight.recordedTasks || 0 }} 个动作已记录完成</p>
+            </article>
+            <article>
+              <span>调整建议</span>
+              <strong>{{ planInsight.nextAdjustment || '保持当前计划' }}</strong>
+              <p>{{ planInsight.recommendation }}</p>
+            </article>
+            <article>
+              <span>恢复提醒</span>
+              <strong>连续 {{ planInsight.currentStreak || 0 }} 天</strong>
+              <p>{{ planInsight.recoveryHint }}</p>
+            </article>
+          </div>
           <div class="plan-coach-strip">
             <article>
               <span>今日重点</span>
@@ -1690,6 +1760,10 @@ onMounted(() => {
             <label><span>动作模式</span><el-select v-model="guideFilters.actionPattern" clearable><el-option v-for="item in actionPatterns" :key="item" :label="item" :value="item" /></el-select></label>
             <label><span>器材</span><el-select v-model="guideFilters.equipment" clearable><el-option v-for="item in equipments" :key="item" :label="item" :value="item" /></el-select></label>
             <label class="checkbox-field"><span>图片状态</span><el-checkbox v-model="guideFilters.missingImageOnly">只看未自定义图片</el-checkbox></label>
+            <label class="checkbox-field"><span>完整度</span><el-checkbox v-model="guideFilters.incompleteOnly">只看不完整</el-checkbox></label>
+            <label class="checkbox-field"><span>步骤</span><el-checkbox v-model="guideFilters.missingStepsOnly">缺步骤</el-checkbox></label>
+            <label class="checkbox-field"><span>要点</span><el-checkbox v-model="guideFilters.missingTipsOnly">缺要点</el-checkbox></label>
+            <label class="checkbox-field"><span>错误提示</span><el-checkbox v-model="guideFilters.missingMistakesOnly">缺常见错误</el-checkbox></label>
             <div class="field-action">
               <el-button type="primary" :icon="Search" :loading="guideLibraryLoading" @click="loadGuideLibrary">筛选</el-button>
               <el-button @click="clearGuideFilters">重置</el-button>
@@ -1878,6 +1952,16 @@ onMounted(() => {
           <div class="reader-box nutrition-watchouts" v-if="nutrition?.watchouts?.length">
             <h3>注意事项</h3>
             <ul class="clean-list"><li v-for="item in nutrition.watchouts" :key="item">{{ item }}</li></ul>
+          </div>
+          <div class="reader-box nutrition-history" v-if="nutritionHistory.length">
+            <h3>最近推荐记录</h3>
+            <div class="history-list">
+              <article v-for="item in nutritionHistory" :key="item.id">
+                <strong>{{ item.targetCalories }} kcal</strong>
+                <span>蛋白 {{ item.proteinGrams }}g · 碳水 {{ item.carbohydrateGrams }}g · 脂肪 {{ item.fatGrams }}g</span>
+                <p>{{ item.preferenceSummary }}</p>
+              </article>
+            </div>
           </div>
         </div>
 
@@ -2081,6 +2165,10 @@ onMounted(() => {
               <label><span>动作模式</span><el-select v-model="guideFilters.actionPattern" clearable><el-option v-for="item in actionPatterns" :key="item" :label="item" :value="item" /></el-select></label>
               <label><span>器材</span><el-select v-model="guideFilters.equipment" clearable><el-option v-for="item in equipments" :key="item" :label="item" :value="item" /></el-select></label>
               <label class="checkbox-field"><span>图片状态</span><el-checkbox v-model="guideFilters.missingImageOnly">只看未自定义图片</el-checkbox></label>
+              <label class="checkbox-field"><span>完整度</span><el-checkbox v-model="guideFilters.incompleteOnly">只看不完整</el-checkbox></label>
+              <label class="checkbox-field"><span>步骤</span><el-checkbox v-model="guideFilters.missingStepsOnly">缺步骤</el-checkbox></label>
+              <label class="checkbox-field"><span>要点</span><el-checkbox v-model="guideFilters.missingTipsOnly">缺要点</el-checkbox></label>
+              <label class="checkbox-field"><span>错误提示</span><el-checkbox v-model="guideFilters.missingMistakesOnly">缺常见错误</el-checkbox></label>
               <div class="field-action">
                 <el-button type="primary" :icon="Search" :loading="guideLibraryLoading" @click="loadGuideLibrary">筛选</el-button>
                 <el-button @click="clearGuideFilters">重置</el-button>
@@ -3199,6 +3287,43 @@ onMounted(() => {
   margin-bottom: 18px;
 }
 
+.plan-insight-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.plan-insight-grid article {
+  border: 1px solid #dfe4da;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #f8fbf6, #fff9e8);
+  padding: 14px;
+  min-width: 0;
+}
+
+.plan-insight-grid span {
+  display: block;
+  color: #66766f;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.plan-insight-grid strong {
+  display: block;
+  margin-top: 6px;
+  color: #173f37;
+  font-size: 18px;
+  overflow-wrap: anywhere;
+}
+
+.plan-insight-grid p {
+  margin: 8px 0 0;
+  color: #607169;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+
 .plan-coach-strip article {
   border: 1px solid #dfe4da;
   border-radius: 8px;
@@ -4129,8 +4254,35 @@ onMounted(() => {
 }
 
 .nutrition-detail-grid,
-.nutrition-watchouts {
+.nutrition-watchouts,
+.nutrition-history {
   margin-top: 16px;
+}
+
+.history-list {
+  display: grid;
+  gap: 10px;
+}
+
+.history-list article {
+  border: 1px solid #e4eadf;
+  border-radius: 8px;
+  background: #fff;
+  padding: 12px;
+  display: grid;
+  gap: 6px;
+}
+
+.history-list strong {
+  color: #173f37;
+}
+
+.history-list span,
+.history-list p {
+  margin: 0;
+  color: #607169;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
 }
 
 .table-shell {
@@ -4270,6 +4422,7 @@ onMounted(() => {
   }
 
   .plan-coach-strip,
+  .plan-insight-grid,
   .achievement-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -4375,6 +4528,7 @@ onMounted(() => {
   .nutrition-tip-grid,
   .plan-execution-bar,
   .plan-coach-strip,
+  .plan-insight-grid,
   .achievement-grid,
   .form-grid,
   .form-grid.compact {

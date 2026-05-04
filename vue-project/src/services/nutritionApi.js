@@ -5,3 +5,5 @@ export const getNutritionRecommendation = () => unwrap(api.get('/nutrition/recom
 export const getNutritionPreference = () => unwrap(api.get('/nutrition/preference'))
 
 export const updateNutritionPreference = (payload) => unwrap(api.put('/nutrition/preference', formBody(payload)))
+
+export const getNutritionHistory = () => unwrap(api.get('/nutrition/history'))

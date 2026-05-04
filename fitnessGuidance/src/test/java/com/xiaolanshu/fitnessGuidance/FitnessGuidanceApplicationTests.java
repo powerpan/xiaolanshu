@@ -3,10 +3,14 @@ package com.xiaolanshu.fitnessGuidance;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.xiaolanshu.fitnessGuidance.mapper.ExerciseGuideMapper;
 import com.xiaolanshu.fitnessGuidance.mapper.NutritionPreferenceMapper;
+import com.xiaolanshu.fitnessGuidance.mapper.NutritionRecommendationHistoryMapper;
 import com.xiaolanshu.fitnessGuidance.mapper.NoticeMapper;
+import com.xiaolanshu.fitnessGuidance.mapper.PlanTaskRecordMapper;
 import com.xiaolanshu.fitnessGuidance.pojo.ExerciseGuide;
 import com.xiaolanshu.fitnessGuidance.pojo.NutritionPreference;
+import com.xiaolanshu.fitnessGuidance.pojo.NutritionRecommendationHistory;
 import com.xiaolanshu.fitnessGuidance.pojo.Notice;
+import com.xiaolanshu.fitnessGuidance.pojo.PlanTaskRecord;
 import com.xiaolanshu.fitnessGuidance.pojo.User;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,6 +19,7 @@ import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.test.context.support.DependencyInjectionTestExecutionListener;
 
 import java.util.List;
+import java.time.LocalDate;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -36,6 +41,12 @@ class FitnessGuidanceApplicationTests {
 
     @Autowired
     private NutritionPreferenceMapper nutritionPreferenceMapper;
+
+    @Autowired
+    private PlanTaskRecordMapper planTaskRecordMapper;
+
+    @Autowired
+    private NutritionRecommendationHistoryMapper nutritionRecommendationHistoryMapper;
 
     @Test
     void contextLoads() {
@@ -103,7 +114,7 @@ class FitnessGuidanceApplicationTests {
         guide.setCommonMistakes("测试常见错误");
         exerciseGuideMapper.addExerciseGuide(guide);
 
-        List<ExerciseGuide> created = exerciseGuideMapper.listexerciseguides(actionPattern, equipment, false);
+        List<ExerciseGuide> created = exerciseGuideMapper.listexerciseguides(actionPattern, equipment, false, false, false, false, false);
         assertThat(created).hasSize(1);
 
         Integer id = created.get(0).getId();
@@ -114,7 +125,7 @@ class FitnessGuidanceApplicationTests {
             update.setImageCredit("管理员上传");
             exerciseGuideMapper.updateExerciseGuide(update);
 
-            ExerciseGuide updated = exerciseGuideMapper.listexerciseguides(actionPattern, equipment, false).get(0);
+            ExerciseGuide updated = exerciseGuideMapper.listexerciseguides(actionPattern, equipment, false, false, false, false, false).get(0);
             assertThat(updated.getActionName()).isEqualTo("测试动作名称-已更新");
             assertThat(updated.getImageurl()).isEqualTo("/uploads/exercise-guides/test.png");
             assertThat(updated.getImageCredit()).isEqualTo("管理员上传");
@@ -150,6 +161,54 @@ class FitnessGuidanceApplicationTests {
         assertThat(updatedRows).isEqualTo(1);
         assertThat(updated.getBudgetLevel()).isEqualTo("经济");
         assertThat(updated.getMealCount()).isEqualTo(3);
+    }
+
+    @Test
+    void planTaskRecordCanBeUpsertedByDayAndIndex() {
+        PlanTaskRecord record = new PlanTaskRecord();
+        String username = "plan-" + System.nanoTime();
+        record.setUsername(username);
+        record.setPlanDate(LocalDate.now());
+        record.setDaytime(1);
+        record.setActionIndex(0);
+        record.setActionPattern("水平推");
+        record.setActionName("俯卧撑");
+        record.setEquipment("徒手");
+        record.setCompleted(true);
+        planTaskRecordMapper.insert(record);
+
+        List<PlanTaskRecord> created = planTaskRecordMapper.listByDay(username, LocalDate.now(), 1);
+        assertThat(created).hasSize(1);
+
+        PlanTaskRecord update = created.get(0);
+        update.setCompleted(false);
+        update.setActualSets(2);
+        Integer updatedRows = planTaskRecordMapper.updateByKey(update);
+
+        List<PlanTaskRecord> updated = planTaskRecordMapper.listByDay(username, LocalDate.now(), 1);
+        assertThat(updatedRows).isEqualTo(1);
+        assertThat(updated.get(0).getCompleted()).isFalse();
+        assertThat(updated.get(0).getActualSets()).isEqualTo(2);
+    }
+
+    @Test
+    void nutritionRecommendationHistoryCanBeListedNewestFirst() {
+        NutritionRecommendationHistory history = new NutritionRecommendationHistory();
+        String username = "history-" + System.nanoTime();
+        history.setUsername(username);
+        history.setTargetCalories(2000);
+        history.setProteinGrams(120);
+        history.setCarbohydrateGrams(240);
+        history.setFatGrams(60);
+        history.setPreferenceSummary("测试偏好");
+        history.setSummary("测试推荐");
+        nutritionRecommendationHistoryMapper.insert(history);
+
+        List<NutritionRecommendationHistory> histories = nutritionRecommendationHistoryMapper.recent(username, 5);
+
+        assertThat(histories).hasSize(1);
+        assertThat(histories.get(0).getTargetCalories()).isEqualTo(2000);
+        assertThat(histories.get(0).getPreferenceSummary()).isEqualTo("测试偏好");
     }
 
 }

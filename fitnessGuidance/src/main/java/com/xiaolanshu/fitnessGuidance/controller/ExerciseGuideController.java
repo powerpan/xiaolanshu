@@ -53,13 +53,23 @@ public class ExerciseGuideController {
 
     @GetMapping("/list")
     public Result<ArrayList<ExerciseGuide>> list(@RequestHeader(name = "Authorization", required = false) String authorization,
-                                                 String jwttoken, String actionPattern, String equipment, Boolean missingImageOnly) {
+                                                 String jwttoken, String actionPattern, String equipment, Boolean missingImageOnly,
+                                                 Boolean incompleteOnly, Boolean missingStepsOnly, Boolean missingTipsOnly,
+                                                 Boolean missingMistakesOnly) {
         try {
             Map<String, Object> claims = Jwtutil.parseToken(resolveToken(authorization, jwttoken));
         } catch (Exception e) {
             return Result.error("未登录");
         }
-        return Result.success(exerciseGuideService.listexerciseguides(actionPattern, equipment, missingImageOnly));
+        return Result.success(exerciseGuideService.listexerciseguides(
+                actionPattern,
+                equipment,
+                missingImageOnly,
+                incompleteOnly,
+                missingStepsOnly,
+                missingTipsOnly,
+                missingMistakesOnly
+        ));
     }
 
     @PostMapping("/addguide")

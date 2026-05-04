@@ -8,7 +8,9 @@ public interface ExerciseGuideService {
 
     ExerciseGuide getexerciseguide(String actionPattern, String equipment);
 
-    ArrayList<ExerciseGuide> listexerciseguides(String actionPattern, String equipment, Boolean missingImageOnly);
+    ArrayList<ExerciseGuide> listexerciseguides(String actionPattern, String equipment, Boolean missingImageOnly,
+                                                Boolean incompleteOnly, Boolean missingStepsOnly,
+                                                Boolean missingTipsOnly, Boolean missingMistakesOnly);
 
     void addExerciseGuide(ExerciseGuide exerciseGuide);
 
