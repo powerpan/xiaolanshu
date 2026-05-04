@@ -330,6 +330,11 @@ const checkinPercent = computed(() => Math.min(100, Math.round(((checkinStats.va
 const planPercent = computed(() => Math.min(100, Math.round((weeklyFrequency.value / 6) * 100)))
 const proteinPercent = computed(() => Math.min(100, Math.round(((nutrition.value?.proteinGrams || 0) / 140) * 100)))
 const recentCheckins = computed(() => checkinStats.value?.recentCheckins || [])
+const checkedPlanDays = computed(() => new Set(
+  recentCheckins.value
+    .map((item) => Number(item.planDay || 0))
+    .filter((day) => day > 0),
+))
 const timelineRecords = computed(() => recentCheckins.value.slice(0, 10))
 const heroBars = computed(() => {
   const records = recentCheckins.value.slice(0, 5).reverse()
@@ -339,6 +344,15 @@ const todayKey = computed(() => formatLocalDate(new Date()))
 const planCheckKey = computed(() => `xl-plan-${user.value?.username || 'guest'}-${todayKey.value}-${selectedDay.value}`)
 const completedTaskMap = computed(() => checkedTasks.value[planCheckKey.value] || {})
 const completedTaskCount = computed(() => Object.values(completedTaskMap.value).filter(Boolean).length)
+const firstLockedPlanDay = (day) => {
+  const currentDay = Number(day || 1)
+  for (let index = 1; index < currentDay; index += 1) {
+    if (!checkedPlanDays.value.has(index)) return index
+  }
+  return null
+}
+const isPlanDayUnlocked = (day) => firstLockedPlanDay(day) === null
+const selectedPlanLockedDay = computed(() => firstLockedPlanDay(selectedDay.value))
 const dayCompletionPercent = computed(() => {
   if (!actionTasks.value.length) return 0
   return Math.round((completedTaskCount.value / actionTasks.value.length) * 100)
@@ -557,6 +571,11 @@ const persistTaskState = () => {
 const isTaskDone = (index) => Boolean(completedTaskMap.value[index])
 
 const toggleTaskDone = async (index, value) => {
+  const lockedDay = firstLockedPlanDay(selectedDay.value)
+  if (lockedDay) {
+    ElMessage.warning(`请先完成第 ${lockedDay} 天训练打卡`)
+    return
+  }
   const completed = Boolean(value)
   const current = { ...completedTaskMap.value, [index]: completed }
   checkedTasks.value = {
@@ -652,6 +671,15 @@ const loadPlan = async (day = selectedDay.value) => {
   splitMode.value = mode
   actionTasks.value = tasks || []
   await Promise.allSettled([loadPlanTaskRecords(day), loadPlanInsight()])
+}
+
+const openPlanDay = async (day) => {
+  const lockedDay = firstLockedPlanDay(day)
+  if (lockedDay) {
+    ElMessage.warning(`请先完成第 ${lockedDay} 天训练打卡`)
+    return
+  }
+  await loadPlan(day)
 }
 
 const loadPlanTaskRecords = async (day = selectedDay.value) => {
@@ -1217,9 +1245,9 @@ const deleteArticle = async (row) => {
   }
 }
 
-const saveCheckin = async () => {
+const saveCheckin = async (payload = checkinForm) => {
   try {
-    await saveTodayCheckin(checkinForm)
+    await saveTodayCheckin(payload)
     ElMessage.success('今日打卡已保存')
     await loadCheckin()
   } catch (error) {
@@ -1238,6 +1266,11 @@ const saveNutritionPreference = async () => {
 }
 
 const savePlanCheckin = async () => {
+  const lockedDay = firstLockedPlanDay(selectedDay.value)
+  if (lockedDay) {
+    ElMessage.warning(`请先完成第 ${lockedDay} 天训练打卡`)
+    return
+  }
   if (!actionTasks.value.length) {
     ElMessage.warning('当前没有可打卡的训练动作')
     return
@@ -1252,7 +1285,7 @@ const savePlanCheckin = async () => {
     mood: completedTaskCount.value === actionTasks.value.length ? '状态不错' : '有挑战',
     note: `完成第 ${selectedDay.value} 天「${splitMode.value || '训练计划'}」：${completedTaskCount.value}/${actionTasks.value.length} 个动作。`,
   })
-  await saveCheckin()
+  await saveCheckin({ ...checkinForm, planDay: selectedDay.value })
   await loadPlanInsight()
 }
 
@@ -1550,11 +1583,20 @@ onMounted(() => {
               <h2>第 {{ selectedDay }} 天 · {{ splitMode }}</h2>
             </div>
             <div class="segmented">
-              <button v-for="day in weeklyDays" :key="day" :class="{ active: selectedDay === day }" @click="loadPlan(day)">
+              <button
+                v-for="day in weeklyDays"
+                :key="day"
+                :class="{ active: selectedDay === day, locked: !isPlanDayUnlocked(day) }"
+                :disabled="!isPlanDayUnlocked(day)"
+                @click="openPlanDay(day)"
+              >
                 {{ day }}
               </button>
             </div>
           </div>
+          <p v-if="selectedPlanLockedDay" class="plan-lock-hint">
+            请先完成第 {{ selectedPlanLockedDay }} 天训练打卡，再继续第 {{ selectedDay }} 天。
+          </p>
           <div class="plan-execution-bar">
             <div>
               <span>执行进度</span>
@@ -1569,7 +1611,7 @@ onMounted(() => {
               <span>训练容量</span>
               <strong>{{ plannedVolume }} 次/秒</strong>
             </div>
-            <el-button type="primary" :icon="Check" @click="savePlanCheckin">按完成情况打卡</el-button>
+            <el-button type="primary" :icon="Check" :disabled="!!selectedPlanLockedDay" @click="savePlanCheckin">按完成情况打卡</el-button>
           </div>
           <div class="plan-insight-grid" v-if="planInsight">
             <article>
@@ -1613,7 +1655,7 @@ onMounted(() => {
               :class="{ done: isTaskDone(index) }"
             >
               <div class="task-checkbar">
-                <el-checkbox :model-value="isTaskDone(index)" @change="(value) => toggleTaskDone(index, value)">
+                <el-checkbox :model-value="isTaskDone(index)" :disabled="!!selectedPlanLockedDay" @change="(value) => toggleTaskDone(index, value)">
                   动作 {{ index + 1 }} 已完成
                 </el-checkbox>
               </div>
@@ -2978,6 +3020,26 @@ onMounted(() => {
 .segmented button:hover {
   transform: translateY(-2px);
   border-color: #9cc8b7;
+}
+
+.segmented button.locked,
+.segmented button:disabled {
+  cursor: not-allowed;
+  color: #8b9691;
+  background: #eef1eb;
+  border-color: #d8ded6;
+  box-shadow: none;
+  transform: none;
+}
+
+.plan-lock-hint {
+  margin: -4px 0 16px;
+  padding: 10px 12px;
+  border: 1px solid #ead9aa;
+  border-radius: 8px;
+  background: #fff8e6;
+  color: #755b16;
+  font-weight: 800;
 }
 
 .action-brief .panel-heading {

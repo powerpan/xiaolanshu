@@ -144,6 +144,7 @@ fitnessGuidance/src/main/resources/data.sql
 阶段三新增的核心数据：
 
 - `exerciseguides`：新增肌群、难度、常见错误、禁忌、适合人群和替代动作字段；初始化数据已按具体动作和器材逐条填充。
+- `fitnesscheckins.plan_day`：记录训练计划对应第几天，用于限制后续天数必须按顺序打卡。
 - `plantaskrecords`：保存用户每日训练计划动作完成记录，用于计算训练计划完成率和调整建议。
 - `nutritionpreferences`：保存用户饮食类型、忌口、预算、外食频率、每日餐次和口味偏好。
 - `nutritionrecommendationhistories`：保存每次生成的饮食推荐摘要和核心营养目标，方便回看。

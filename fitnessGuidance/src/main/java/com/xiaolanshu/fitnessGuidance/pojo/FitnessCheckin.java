@@ -10,6 +10,7 @@ public class FitnessCheckin {
     private Integer id;
     private String username;
     private LocalDate checkinDate;
+    private Integer planDay;
     private Integer durationMinutes;
     private String mood;
     private String note;

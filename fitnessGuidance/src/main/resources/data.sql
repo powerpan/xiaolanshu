@@ -287,11 +287,11 @@ UPDATE exerciseguides SET primarymuscles = '臀大肌、腘绳肌', secondarymus
 UPDATE exerciseguides SET primarymuscles = '肱二头肌、肱肌', secondarymuscles = '肱桡肌、前臂屈肌', difficulty = '新手', contraindications = '肘腕疼痛或绳索高度导致肩部不适时调整握把和重量。', commonmistakes = '身体晃动、肘部前移、肩膀耸起、下放失控。', suitablefor = '需要持续张力训练肱二头肌并减少自由重量摆动的用户。', alternatives = '弹力带弯举、哑铃弯举、杠铃弯举、毛巾自阻力弯举。' WHERE actionname = '绳索弯举' AND equipment = '综合器械';
 
 MERGE INTO fitnesscheckins (
-    username, checkin_date, duration_minutes, mood, note, created_at
+    username, checkin_date, plan_day, duration_minutes, mood, note, created_at
 ) KEY(username, checkin_date) VALUES
-('demo', CURRENT_DATE, 35, '状态不错', '完成了上肢训练，俯卧撑比上周稳定。', CURRENT_TIMESTAMP),
-('demo', DATEADD('DAY', -1, CURRENT_DATE), 25, '轻松', '做了核心训练和拉伸。', DATEADD('DAY', -1, CURRENT_TIMESTAMP)),
-('demo', DATEADD('DAY', -2, CURRENT_DATE), 40, '有挑战', '下肢训练比较累，休息时间需要拉长。', DATEADD('DAY', -2, CURRENT_TIMESTAMP));
+('demo', CURRENT_DATE, 1, 35, '状态不错', '完成了上肢训练，俯卧撑比上周稳定。', CURRENT_TIMESTAMP),
+('demo', DATEADD('DAY', -1, CURRENT_DATE), NULL, 25, '轻松', '做了核心训练和拉伸。', DATEADD('DAY', -1, CURRENT_TIMESTAMP)),
+('demo', DATEADD('DAY', -2, CURRENT_DATE), NULL, 40, '有挑战', '下肢训练比较累，休息时间需要拉长。', DATEADD('DAY', -2, CURRENT_TIMESTAMP));
 
 MERGE INTO plantaskrecords (
     username, plan_date, daytime, action_index, actionpattern, actionname, equipment, completed, actual_sets, actual_reps, difficulty_score, note, updated_at

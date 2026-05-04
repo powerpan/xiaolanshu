@@ -2,6 +2,7 @@ package com.xiaolanshu.fitnessGuidance;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.xiaolanshu.fitnessGuidance.mapper.ExerciseGuideMapper;
+import com.xiaolanshu.fitnessGuidance.mapper.FitnessCheckinMapper;
 import com.xiaolanshu.fitnessGuidance.mapper.NutritionPreferenceMapper;
 import com.xiaolanshu.fitnessGuidance.mapper.NutritionRecommendationHistoryMapper;
 import com.xiaolanshu.fitnessGuidance.mapper.NoticeMapper;
@@ -12,6 +13,7 @@ import com.xiaolanshu.fitnessGuidance.pojo.NutritionRecommendationHistory;
 import com.xiaolanshu.fitnessGuidance.pojo.Notice;
 import com.xiaolanshu.fitnessGuidance.pojo.PlanTaskRecord;
 import com.xiaolanshu.fitnessGuidance.pojo.User;
+import com.xiaolanshu.fitnessGuidance.service.FitnessCheckinService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -22,6 +24,7 @@ import java.util.List;
 import java.time.LocalDate;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest
 @TestExecutionListeners(
@@ -38,6 +41,12 @@ class FitnessGuidanceApplicationTests {
 
     @Autowired
     private ExerciseGuideMapper exerciseGuideMapper;
+
+    @Autowired
+    private FitnessCheckinMapper fitnessCheckinMapper;
+
+    @Autowired
+    private FitnessCheckinService fitnessCheckinService;
 
     @Autowired
     private NutritionPreferenceMapper nutritionPreferenceMapper;
@@ -207,6 +216,37 @@ class FitnessGuidanceApplicationTests {
         assertThat(updatedRows).isEqualTo(1);
         assertThat(updated.get(0).getCompleted()).isFalse();
         assertThat(updated.get(0).getActualSets()).isEqualTo(2);
+    }
+
+    @Test
+    void planDayCheckinRequiresPreviousPlanDays() {
+        String username = "checkin-order-" + System.nanoTime();
+
+        assertThatThrownBy(() -> fitnessCheckinService.saveToday(username, 30, "状态不错", "直接打第 2 天", 2))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("请先完成第 1 天训练打卡");
+
+        fitnessCheckinMapper.insertToday(
+                username,
+                LocalDate.now().minusDays(1),
+                1,
+                30,
+                "状态不错",
+                "完成第 1 天");
+
+        fitnessCheckinService.saveToday(username, 35, "有挑战", "完成第 2 天", 2);
+
+        assertThat(fitnessCheckinMapper.findByDate(username, LocalDate.now()).getPlanDay()).isEqualTo(2);
+    }
+
+    @Test
+    void todayPlanDayCannotBeChangedAfterCheckin() {
+        String username = "checkin-conflict-" + System.nanoTime();
+        fitnessCheckinService.saveToday(username, 30, "状态不错", "完成第 1 天", 1);
+
+        assertThatThrownBy(() -> fitnessCheckinService.saveToday(username, 30, "状态不错", "改成第 2 天", 2))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("今天已记录第 1 天训练");
     }
 
     @Test

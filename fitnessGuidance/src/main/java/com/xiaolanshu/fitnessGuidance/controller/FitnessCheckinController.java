@@ -29,12 +29,16 @@ public class FitnessCheckinController {
 
     @PutMapping("/today")
     public Result saveToday(@RequestHeader(name = "Authorization", required = false) String authorization,
-                            String jwttoken, Integer durationMinutes, String mood, String note) {
+                            String jwttoken, Integer durationMinutes, String mood, String note, Integer planDay) {
         String username = parseUsername(resolveToken(authorization, jwttoken));
         if (username == null) {
             return Result.error("未登录");
         }
-        fitnessCheckinService.saveToday(username, durationMinutes, mood, note);
+        try {
+            fitnessCheckinService.saveToday(username, durationMinutes, mood, note, planDay);
+        } catch (IllegalArgumentException e) {
+            return Result.error(e.getMessage());
+        }
         return Result.success();
     }
 

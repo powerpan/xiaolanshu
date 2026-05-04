@@ -8,5 +8,7 @@ public interface FitnessCheckinService {
 
     void saveToday(String username, Integer durationMinutes, String mood, String note);
 
+    void saveToday(String username, Integer durationMinutes, String mood, String note, Integer planDay);
+
     CheckinStats getStats(String username);
 }
