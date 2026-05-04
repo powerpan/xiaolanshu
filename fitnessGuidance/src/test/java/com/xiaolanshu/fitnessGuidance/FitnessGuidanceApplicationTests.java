@@ -137,6 +137,24 @@ class FitnessGuidanceApplicationTests {
     }
 
     @Test
+    void seededExerciseGuidesUseActionSpecificMetadata() {
+        ExerciseGuide benchPress = exerciseGuideMapper.getexerciseguide("水平推", "杠铃");
+        ExerciseGuide pushUp = exerciseGuideMapper.getexerciseguide("水平推", "徒手");
+        ExerciseGuide chairDip = exerciseGuideMapper.getexerciseguide("手臂伸展", "徒手");
+
+        assertThat(benchPress.getActionName()).isEqualTo("杠铃卧推");
+        assertThat(benchPress.getDifficulty()).isEqualTo("熟练");
+        assertThat(benchPress.getContraindications()).contains("无安全架");
+
+        assertThat(pushUp.getActionName()).isEqualTo("俯卧撑");
+        assertThat(pushUp.getAlternatives()).contains("上斜俯卧撑");
+
+        assertThat(chairDip.getActionName()).isEqualTo("椅上臂屈伸");
+        assertThat(chairDip.getPrimaryMuscles()).contains("三角肌前束");
+        assertThat(chairDip.getCommonMistakes()).contains("椅子不稳");
+    }
+
+    @Test
     void nutritionPreferenceCanBeInsertedAndUpdated() {
         String username = "preference-" + System.nanoTime();
         NutritionPreference preference = new NutritionPreference();
