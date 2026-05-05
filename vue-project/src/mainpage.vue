@@ -70,14 +70,12 @@ import {
   deleteFoodReplacement,
   deleteMealTemplate,
   getAdminNutritionLibrary,
-  getNutritionPreference,
   getNutritionLibrary,
   getNutritionRecommendation,
   updateEatingScenario,
   updateFoodItem,
   updateFoodReplacement,
   updateMealTemplate,
-  updateNutritionPreference,
 } from './services/nutritionApi'
 import {
   getActionTasks,
@@ -261,15 +259,6 @@ const guideEditForm = reactive({
   imageurl: '',
 })
 
-const nutritionPreferenceForm = reactive({
-  dietType: '均衡饮食',
-  allergies: '',
-  budgetLevel: '中等',
-  eatingOutFrequency: '偶尔外食',
-  mealCount: 4,
-  tastePreference: '清淡',
-})
-
 const foodItemForm = reactive({
   id: '',
   name: '',
@@ -321,10 +310,6 @@ const equipments = ['徒手', '哑铃', '弹力带', '杠铃', '单杠', '综合
 const levels = ['新手', '进阶', '熟练', '资深']
 const actionPatterns = ['水平推', '垂直推', '水平拉', '垂直拉', '下肢蹲', '髋铰链', '单腿训练', '核心稳定', '手臂弯举', '手臂伸展', '灵活恢复']
 const moods = ['状态不错', '轻松', '有挑战', '需要恢复']
-const dietTypes = ['均衡饮食', '高蛋白', '低脂', '素食友好', '控糖']
-const budgetLevels = ['经济', '中等', '充足']
-const eatingOutFrequencies = ['很少外食', '偶尔外食', '经常外食']
-const tastePreferences = ['清淡', '家常', '偏辣', '偏甜', '少油少盐']
 const foodCategories = ['低脂蛋白', '高蛋白主食', '蔬菜', '水果', '饮品']
 const mealTypes = ['早餐', '午餐', '晚餐', '加餐', '训练前后']
 const eatingScenes = ['通用', '食堂', '便利店', '外卖', '家庭做饭']
@@ -415,8 +400,8 @@ const firstLockedPlanDay = (day) => {
   }
   return null
 }
-const isPlanDayUnlocked = (day) => firstLockedPlanDay(day) === null
-const selectedPlanLockedDay = computed(() => firstLockedPlanDay(selectedDay.value))
+const isPlanDayCheckinAvailable = (day) => firstLockedPlanDay(day) === null
+const selectedPlanCheckinBlockedDay = computed(() => firstLockedPlanDay(selectedDay.value))
 const dayCompletionPercent = computed(() => {
   if (!actionTasks.value.length) return 0
   return Math.round((completedTaskCount.value / actionTasks.value.length) * 100)
@@ -692,7 +677,7 @@ const isTaskDone = (index) => Boolean(completedTaskMap.value[index])
 const toggleTaskDone = async (index, value) => {
   const lockedDay = firstLockedPlanDay(selectedDay.value)
   if (lockedDay) {
-    ElMessage.warning(`请先完成第 ${lockedDay} 天训练打卡`)
+    ElMessage.warning(`请先完成第 ${lockedDay} 天训练打卡，再记录第 ${selectedDay.value} 天动作`)
     return
   }
   const completed = Boolean(value)
@@ -797,11 +782,6 @@ const loadPlan = async (day = selectedDay.value) => {
 }
 
 const openPlanDay = async (day) => {
-  const lockedDay = firstLockedPlanDay(day)
-  if (lockedDay) {
-    ElMessage.warning(`请先完成第 ${lockedDay} 天训练打卡`)
-    return
-  }
   await loadPlan(day)
 }
 
@@ -1053,18 +1033,6 @@ const loadNutrition = async () => {
   nutritionLibrary.value = library
 }
 
-const loadNutritionPreference = async () => {
-  const preference = await getNutritionPreference()
-  Object.assign(nutritionPreferenceForm, {
-    dietType: preference?.dietType || '均衡饮食',
-    allergies: preference?.allergies || '',
-    budgetLevel: preference?.budgetLevel || '中等',
-    eatingOutFrequency: preference?.eatingOutFrequency || '偶尔外食',
-    mealCount: preference?.mealCount || 4,
-    tastePreference: preference?.tastePreference || '清淡',
-  })
-}
-
 const loadNutritionAdmin = async () => {
   nutritionAdminLibrary.value = await getAdminNutritionLibrary()
 }
@@ -1118,7 +1086,6 @@ const bootstrap = async () => {
       loadArticles(),
       loadCheckin(),
       loadNutrition(),
-      loadNutritionPreference(),
       loadGuideLibrary(),
     ]
     await Promise.allSettled(tasks)
@@ -1160,7 +1127,7 @@ const openView = async (key) => {
     if (key === 'guide') await loadGuideLibrary()
     if (key === 'checkin') await Promise.all([loadCheckin(), loadPlanInsight()])
     if (key === 'insights') await Promise.all([loadCheckin(), loadPlanInsight()])
-    if (key === 'nutrition') await Promise.all([loadNutrition(), loadNutritionPreference()])
+    if (key === 'nutrition') await loadNutrition()
   } catch (error) {
     ElMessage.error(error.message || '加载失败')
   }
@@ -1433,16 +1400,6 @@ const saveCheckin = async (payload = checkinForm) => {
   }
 }
 
-const saveNutritionPreference = async () => {
-  try {
-    await updateNutritionPreference(nutritionPreferenceForm)
-    ElMessage.success('饮食偏好已保存')
-    await loadNutrition()
-  } catch (error) {
-    ElMessage.error(error.message || '保存失败')
-  }
-}
-
 const resetFoodItemForm = () => {
   Object.assign(foodItemForm, {
     id: '',
@@ -1587,7 +1544,7 @@ const removeEatingScenario = async (item) => {
 const savePlanCheckin = async () => {
   const lockedDay = firstLockedPlanDay(selectedDay.value)
   if (lockedDay) {
-    ElMessage.warning(`请先完成第 ${lockedDay} 天训练打卡`)
+    ElMessage.warning(`请先完成第 ${lockedDay} 天训练打卡，再打卡第 ${selectedDay.value} 天`)
     return
   }
   if (!actionTasks.value.length) {
@@ -1910,16 +1867,15 @@ onMounted(() => {
               <button
                 v-for="day in weeklyDays"
                 :key="day"
-                :class="{ active: selectedDay === day, locked: !isPlanDayUnlocked(day) }"
-                :disabled="!isPlanDayUnlocked(day)"
+                :class="{ active: selectedDay === day, 'checkin-locked': !isPlanDayCheckinAvailable(day) }"
                 @click="openPlanDay(day)"
               >
                 {{ day }}
               </button>
             </div>
           </div>
-          <p v-if="selectedPlanLockedDay" class="plan-lock-hint">
-            请先完成第 {{ selectedPlanLockedDay }} 天训练打卡，再继续第 {{ selectedDay }} 天。
+          <p v-if="selectedPlanCheckinBlockedDay" class="plan-lock-hint">
+            可提前查看第 {{ selectedDay }} 天训练计划；完成第 {{ selectedPlanCheckinBlockedDay }} 天打卡后，才可打卡第 {{ selectedDay }} 天。
           </p>
           <div class="plan-execution-bar">
             <div>
@@ -1935,7 +1891,7 @@ onMounted(() => {
               <span>训练容量</span>
               <strong>{{ plannedVolume }} 次/秒</strong>
             </div>
-            <el-button type="primary" :icon="Check" :disabled="!!selectedPlanLockedDay" @click="savePlanCheckin">按完成情况打卡</el-button>
+            <el-button type="primary" :icon="Check" :disabled="!!selectedPlanCheckinBlockedDay" @click="savePlanCheckin">按完成情况打卡</el-button>
           </div>
           <div class="cycle-grid" v-if="trainingCycle || planInsight">
             <article>
@@ -2009,7 +1965,7 @@ onMounted(() => {
               :class="{ done: isTaskDone(index) }"
             >
               <div class="task-checkbar">
-                <el-checkbox :model-value="isTaskDone(index)" :disabled="!!selectedPlanLockedDay" @change="(value) => toggleTaskDone(index, value)">
+                <el-checkbox :model-value="isTaskDone(index)" :disabled="!!selectedPlanCheckinBlockedDay" @change="(value) => toggleTaskDone(index, value)">
                   动作 {{ index + 1 }} 已完成
                 </el-checkbox>
               </div>
@@ -2367,23 +2323,6 @@ onMounted(() => {
           </details>
         </div>
 
-        <div class="panel">
-          <div class="panel-heading">
-            <div>
-              <p>偏好设置</p>
-              <h2>让推荐更贴近你的日常</h2>
-            </div>
-            <el-button type="primary" :icon="Check" @click="saveNutritionPreference">保存偏好</el-button>
-          </div>
-          <div class="form-grid compact">
-            <label><span>饮食类型</span><el-select v-model="nutritionPreferenceForm.dietType"><el-option v-for="item in dietTypes" :key="item" :label="item" :value="item" /></el-select></label>
-            <label><span>预算</span><el-select v-model="nutritionPreferenceForm.budgetLevel"><el-option v-for="item in budgetLevels" :key="item" :label="item" :value="item" /></el-select></label>
-            <label><span>外食频率</span><el-select v-model="nutritionPreferenceForm.eatingOutFrequency"><el-option v-for="item in eatingOutFrequencies" :key="item" :label="item" :value="item" /></el-select></label>
-            <label><span>每日餐次</span><el-input-number v-model="nutritionPreferenceForm.mealCount" :min="3" :max="5" /></label>
-            <label><span>口味</span><el-select v-model="nutritionPreferenceForm.tastePreference"><el-option v-for="item in tastePreferences" :key="item" :label="item" :value="item" /></el-select></label>
-            <label class="wide"><span>忌口/过敏</span><el-input v-model="nutritionPreferenceForm.allergies" placeholder="例如：乳糖不耐、花生过敏、无明显忌口" /></label>
-          </div>
-        </div>
       </section>
 
       <section v-if="activeView === 'notices'" class="content-stack">
@@ -3564,7 +3503,12 @@ onMounted(() => {
   border-color: #efb07b;
 }
 
-.segmented button.locked,
+.segmented button.checkin-locked {
+  color: #8a6a38;
+  background: #fff7e8;
+  border-color: #efd6ad;
+}
+
 .segmented button:disabled {
   cursor: not-allowed;
   color: #8b9691;
