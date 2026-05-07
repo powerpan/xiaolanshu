@@ -99,17 +99,37 @@ const switchMode = () => {
 
 <template>
   <main class="auth-page">
+    <div class="auth-aurora" aria-hidden="true">
+      <span class="aurora-blob aurora-a"></span>
+      <span class="aurora-blob aurora-b"></span>
+      <span class="aurora-blob aurora-c"></span>
+      <span class="aurora-grid"></span>
+    </div>
+
     <section class="auth-hero">
       <div class="brand-line">
-        <img class="brand-mark" :src="yueluLogo" alt="跃鹿运动标识">
+        <span class="brand-mark-wrap">
+          <img class="brand-mark" :src="yueluLogo" alt="跃鹿运动标识">
+          <i class="brand-mark-glow" aria-hidden="true"></i>
+        </span>
         <div>
-          <strong>跃鹿运动</strong>
-          <small>Yuelu Fitness Planning OS</small>
+          <strong>跃鹿<em>运动</em></strong>
+          <small>Yuelu Fitness Planning OS · v2.0</small>
         </div>
       </div>
 
+      <div class="hero-headline">
+        <p class="hero-eyebrow">
+          <span class="dot" aria-hidden="true"></span>
+          Powered by data &amp; intuition
+        </p>
+        <h1>把每一次训练<br><em>变成可见的进度。</em></h1>
+        <span class="hero-sub">基于目标、频率、器材和水平自动生成训练计划，配合打卡热力图与饮食建议，建立稳定的训练节奏。</span>
+      </div>
+
       <div class="feature-grid">
-        <article v-for="item in featureCards" :key="item.title">
+        <article v-for="(item, idx) in featureCards" :key="item.title" :style="{ '--i': idx }">
+          <span class="feature-glow" aria-hidden="true"></span>
           <el-icon><component :is="item.icon" /></el-icon>
           <strong>{{ item.title }}</strong>
           <p>{{ item.copy }}</p>
@@ -191,11 +211,77 @@ const switchMode = () => {
   gap: clamp(16px, 4vw, 52px);
   align-items: center;
   padding: clamp(12px, 2vw, 28px);
-  background:
-    linear-gradient(110deg, rgba(58, 33, 23, 0.97) 0 48%, transparent 48%),
-    linear-gradient(135deg, #fffaf4 0%, #fff2e3 54%, #f7e4d2 100%);
+  background: #1a0e08;
   color: #2b211c;
   overflow-x: hidden;
+  overflow-y: hidden;
+  isolation: isolate;
+}
+
+/* —— 极光背景层 —— */
+.auth-aurora {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  overflow: hidden;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 22% 25%, #4a2615 0%, transparent 55%),
+    radial-gradient(circle at 75% 80%, #c65a1a 0%, transparent 55%),
+    linear-gradient(135deg, #1a0e08 0%, #2b1610 40%, #3a2117 100%);
+}
+
+.aurora-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(70px);
+  mix-blend-mode: screen;
+}
+
+.aurora-a {
+  top: -10%;
+  left: 8%;
+  width: 480px;
+  height: 480px;
+  background: radial-gradient(circle, rgba(255, 211, 154, 0.62), transparent 65%);
+  animation: aurora-float-a 18s ease-in-out infinite alternate;
+}
+
+.aurora-b {
+  bottom: -20%;
+  left: 28%;
+  width: 580px;
+  height: 580px;
+  background: radial-gradient(circle, rgba(233, 121, 26, 0.7), transparent 65%);
+  animation: aurora-float-b 22s ease-in-out infinite alternate;
+}
+
+.aurora-c {
+  top: 18%;
+  right: -8%;
+  width: 460px;
+  height: 460px;
+  background: radial-gradient(circle, rgba(255, 246, 234, 0.6), transparent 60%);
+  animation: aurora-float-c 26s ease-in-out infinite alternate;
+}
+
+.aurora-grid {
+  position: absolute;
+  inset: 0;
+  background:
+    repeating-linear-gradient(0deg, rgba(255, 246, 234, 0.04) 0 1px, transparent 1px 64px),
+    repeating-linear-gradient(90deg, rgba(255, 246, 234, 0.035) 0 1px, transparent 1px 64px);
+  mask-image: radial-gradient(circle at 50% 50%, rgba(0, 0, 0, 1) 30%, transparent 80%);
+}
+
+@keyframes aurora-float-a {
+  to { transform: translate3d(60px, 30px, 0) scale(1.08); }
+}
+@keyframes aurora-float-b {
+  to { transform: translate3d(-40px, -50px, 0) scale(1.12); }
+}
+@keyframes aurora-float-c {
+  to { transform: translate3d(-80px, 40px, 0) scale(1.05); }
 }
 
 .auth-page::before {
@@ -203,11 +289,13 @@ const switchMode = () => {
   position: absolute;
   left: clamp(18px, 6vw, 92px);
   bottom: clamp(-110px, -8vw, -42px);
-  width: min(58vw, 700px);
+  width: min(54vw, 660px);
   aspect-ratio: 2 / 3;
   background: url('./assets/yuelu-logo.png') center / contain no-repeat;
-  opacity: 0.16;
+  opacity: 0.08;
+  filter: brightness(1.4) saturate(0.6);
   pointer-events: none;
+  z-index: -1;
 }
 
 .auth-hero {
@@ -217,7 +305,7 @@ const switchMode = () => {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 22px;
+  gap: 26px;
   padding: clamp(18px, 4vw, 50px);
   color: #fff;
 }
@@ -230,20 +318,61 @@ const switchMode = () => {
 .brand-line {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 16px;
   min-width: 0;
+}
+
+.brand-mark-wrap {
+  position: relative;
+  isolation: isolate;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  padding: 3px;
+  background: linear-gradient(135deg, #fff4e3, #ffd39a 60%, #ffb454);
+  box-shadow:
+    0 16px 32px rgba(233, 121, 26, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.65);
 }
 
 .brand-mark,
 .brand-line .brand-mark {
-  width: 50px;
-  height: 50px;
-  border-radius: 8px;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: calc(14px - 3px);
   display: block;
-  background: rgba(255, 255, 255, 0.94);
+  background: rgba(255, 255, 255, 0.96);
   object-fit: cover;
   object-position: center 54%;
-  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.18);
+}
+
+.brand-mark-glow {
+  position: absolute;
+  inset: -6px;
+  border-radius: 20px;
+  background: var(--grad-aurora);
+  filter: blur(10px);
+  opacity: 0.6;
+  z-index: -1;
+  pointer-events: none;
+  animation: ring-spin 8s linear infinite;
+}
+
+.brand-line > div {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.brand-line strong,
+.brand-line small {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .brand-line strong,
@@ -252,40 +381,98 @@ const switchMode = () => {
 }
 
 .brand-line strong {
-  font-size: 20px;
-}
-
-.brand-line small,
-.hero-copy span,
-.hero-copy p,
-.feature-grid p {
-  color: rgba(255, 255, 255, 0.72);
-}
-
-.hero-copy p,
-.auth-heading p {
-  margin: 0 0 8px;
-  color: #f0b35d;
-  font-size: 13px;
+  font-size: 22px;
   font-weight: 900;
+  letter-spacing: 0.6px;
+  color: #fff;
+}
+
+.brand-line strong em {
+  font-style: normal;
+  margin-left: 6px;
+  background: linear-gradient(120deg, #ffe3bd 0%, #ffb454 50%, #fff4e3 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  letter-spacing: 1.4px;
+}
+
+.brand-line small {
+  margin-top: 4px;
+  font-family: 'Space Grotesk', 'Inter', sans-serif;
+  letter-spacing: 1.6px;
+  font-size: 11px;
+  font-weight: 700;
   text-transform: uppercase;
+  color: rgba(255, 246, 234, 0.6);
 }
 
-.hero-copy h1 {
-  max-width: 820px;
+/* —— Hero headline —— */
+.hero-headline {
+  display: grid;
+  gap: 18px;
+}
+
+.hero-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  gap: 10px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: linear-gradient(120deg, rgba(255, 211, 154, 0.18), rgba(233, 121, 26, 0.14));
+  border: 1px solid rgba(255, 211, 154, 0.3);
+  color: #fff4e3;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  backdrop-filter: blur(10px);
   margin: 0;
-  font-size: clamp(34px, 5vw, 60px);
-  line-height: 1.06;
-  letter-spacing: 0;
-  overflow-wrap: anywhere;
 }
 
-.hero-copy span {
+.hero-eyebrow .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #ffd39a, #e9791a);
+  box-shadow: 0 0 0 3px rgba(255, 180, 84, 0.18), 0 0 12px rgba(255, 211, 154, 0.65);
+  animation: glow-pulse 2.4s ease-in-out infinite;
+}
+
+.hero-headline h1 {
+  margin: 0;
+  font-family: 'Space Grotesk', 'Inter', sans-serif;
+  font-size: clamp(38px, 5.4vw, 68px);
+  line-height: 1.02;
+  letter-spacing: -1.5px;
+  font-weight: 800;
+  color: #fff;
+  overflow-wrap: anywhere;
+  text-shadow: 0 8px 30px rgba(255, 180, 84, 0.16);
+}
+
+.hero-headline h1 em {
+  font-style: normal;
+  background: linear-gradient(120deg, #ffe3bd 0%, #ffb454 40%, #ff8a3a 70%, #ffe3bd 100%);
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: hero-gradient-flow 6s ease-in-out infinite;
+}
+
+@keyframes hero-gradient-flow {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+.hero-sub {
   display: block;
-  max-width: 640px;
-  margin-top: 16px;
-  font-size: 16px;
-  line-height: 1.68;
+  max-width: 600px;
+  color: rgba(255, 246, 234, 0.72);
+  font-size: 15px;
+  line-height: 1.78;
 }
 
 .feature-grid {
@@ -296,68 +483,136 @@ const switchMode = () => {
 }
 
 .feature-grid article {
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 8px;
-  padding: 14px;
-  background: rgba(83, 43, 24, 0.76);
-  backdrop-filter: blur(12px);
+  position: relative;
+  border: 1px solid rgba(255, 211, 154, 0.18);
+  border-radius: 16px;
+  padding: 16px;
+  background:
+    linear-gradient(180deg, rgba(255, 246, 234, 0.08), rgba(255, 246, 234, 0.02));
+  backdrop-filter: blur(14px) saturate(1.2);
   display: grid;
   gap: 10px;
-  box-shadow: 0 14px 34px rgba(47, 28, 18, 0.18);
-  transition: transform 220ms ease, background 220ms ease;
+  box-shadow:
+    0 14px 34px rgba(15, 8, 4, 0.32),
+    inset 0 1px 0 rgba(255, 246, 234, 0.18);
+  overflow: hidden;
+  isolation: isolate;
+  transition: transform 320ms cubic-bezier(0.2, 0.8, 0.2, 1), border-color 320ms ease, background 320ms ease;
+  animation: feature-rise 700ms cubic-bezier(0.2, 0.8, 0.2, 1) calc(var(--i, 0) * 90ms) both;
+}
+
+@keyframes feature-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.feature-glow {
+  position: absolute;
+  inset: -40% -20% auto auto;
+  width: 80%;
+  aspect-ratio: 1;
+  background: radial-gradient(circle, rgba(255, 211, 154, 0.32), transparent 70%);
+  filter: blur(10px);
+  z-index: -1;
+  opacity: 0;
+  transition: opacity 320ms ease;
+  pointer-events: none;
 }
 
 .feature-grid article:hover {
-  transform: translateY(-4px);
-  background: rgba(122, 55, 27, 0.84);
+  transform: translateY(-5px);
+  border-color: rgba(255, 211, 154, 0.55);
+  background:
+    linear-gradient(180deg, rgba(255, 246, 234, 0.14), rgba(255, 246, 234, 0.04));
+}
+
+.feature-grid article:hover .feature-glow {
+  opacity: 1;
 }
 
 .feature-grid .el-icon {
-  width: 34px;
-  height: 34px;
-  border-radius: 8px;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
   display: grid;
   place-items: center;
-  background: rgba(255, 255, 255, 0.12);
-  color: #ffbd64;
+  background: linear-gradient(135deg, rgba(255, 211, 154, 0.22), rgba(233, 121, 26, 0.18));
+  border: 1px solid rgba(255, 211, 154, 0.35);
+  color: #ffd39a;
   font-size: 19px;
+  box-shadow: inset 0 1px 0 rgba(255, 246, 234, 0.32);
 }
 
 .feature-grid strong {
   color: #fff;
   font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.2px;
 }
 
 .feature-grid p {
   margin: 0;
+  color: rgba(255, 246, 234, 0.7);
   line-height: 1.7;
+  font-size: 13px;
 }
 
 .auth-card {
   width: 100%;
-  max-width: 460px;
+  max-width: 480px;
   justify-self: center;
-  padding: clamp(20px, 3vw, 30px);
-  border: 1px solid #eadfd4;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 24px 80px rgba(84, 62, 48, 0.12);
-  backdrop-filter: blur(18px);
+  padding: clamp(22px, 3vw, 32px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: 22px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.94) 0%, rgba(255, 250, 244, 0.94) 100%);
+  box-shadow:
+    0 30px 80px rgba(15, 8, 4, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(22px) saturate(1.2);
+  position: relative;
+  isolation: isolate;
+}
+
+.auth-card::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  z-index: -1;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(255, 211, 154, 0.7), rgba(255, 255, 255, 0) 40%, rgba(255, 211, 154, 0) 60%, rgba(233, 121, 26, 0.5));
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
 }
 
 .product-preview {
-  margin-bottom: 20px;
-  border: 1px solid #eadfd4;
-  border-radius: 8px;
-  padding: 14px;
+  margin-bottom: 22px;
+  border: 1px solid rgba(255, 211, 154, 0.18);
+  border-radius: 16px;
+  padding: 16px;
   background:
-    linear-gradient(135deg, #3a2117, #c65a1a),
-    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.08) 0 1px, transparent 1px 42px);
+    radial-gradient(circle at 18% 20%, rgba(255, 211, 154, 0.32) 0%, transparent 40%),
+    radial-gradient(circle at 88% 88%, rgba(255, 180, 84, 0.4) 0%, transparent 40%),
+    linear-gradient(118deg, #1c130e 0%, #3a2117 35%, #7b371b 70%, #c65a1a 100%);
   color: #fff;
   display: grid;
   gap: 12px;
   overflow: hidden;
   position: relative;
+  isolation: isolate;
+  box-shadow:
+    0 18px 36px rgba(15, 8, 4, 0.32),
+    inset 0 1px 0 rgba(255, 246, 234, 0.18);
 }
 
 .product-preview::before {
@@ -365,8 +620,26 @@ const switchMode = () => {
   position: absolute;
   inset: 0;
   background:
-    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.08) 0 1px, transparent 1px 42px),
-    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.06) 0 1px, transparent 1px 42px);
+    repeating-linear-gradient(90deg, rgba(255, 246, 234, 0.06) 0 1px, transparent 1px 42px),
+    repeating-linear-gradient(0deg, rgba(255, 246, 234, 0.045) 0 1px, transparent 1px 42px);
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.7;
+}
+
+.product-preview::after {
+  content: "";
+  position: absolute;
+  top: -50%;
+  right: -20%;
+  width: 60%;
+  height: 200%;
+  background: var(--grad-aurora);
+  filter: blur(40px);
+  opacity: 0.45;
+  z-index: 0;
+  mix-blend-mode: screen;
+  animation: ring-spin 18s linear infinite;
   pointer-events: none;
 }
 
@@ -398,25 +671,48 @@ const switchMode = () => {
 }
 
 .preview-ring {
-  width: 94px;
+  position: relative;
+  width: 100px;
   aspect-ratio: 1;
   margin: 0 auto;
   border-radius: 50%;
   display: grid;
   place-items: center;
   background:
-    radial-gradient(circle at 50% 50%, #5a2c1b 0 57%, transparent 58%),
-    conic-gradient(#ffbd64 0 84%, rgba(255, 255, 255, 0.18) 84% 100%);
-  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.16);
+    radial-gradient(circle at 50% 50%, #4a2615 0 57%, transparent 58%),
+    conic-gradient(from -90deg, #ffd39a, #ffb454 60%, #e9791a 84%, rgba(255, 255, 255, 0.16) 84% 100%);
+  box-shadow: 0 22px 40px rgba(15, 8, 4, 0.36);
+}
+
+.preview-ring::before {
+  content: "";
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  background: var(--grad-aurora);
+  filter: blur(10px);
+  opacity: 0.55;
+  z-index: -1;
+  animation: ring-spin 7s linear infinite;
 }
 
 .preview-ring strong {
-  font-size: 27px;
+  font-family: 'Space Grotesk', 'Inter', sans-serif;
+  font-size: 28px;
   line-height: 1;
+  font-weight: 800;
+  letter-spacing: -0.6px;
+  background: linear-gradient(180deg, #fff4e3, #ffb454);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-feature-settings: 'tnum';
 }
 
 .preview-ring small {
-  font-size: 12px;
+  font-size: 11px;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
 }
 
 .preview-stats,
@@ -463,14 +759,29 @@ const switchMode = () => {
 
 .auth-heading h2 {
   margin: 0;
+  font-family: 'Space Grotesk', 'Inter', sans-serif;
   font-size: 30px;
-  letter-spacing: 0;
+  font-weight: 800;
+  letter-spacing: -0.6px;
   overflow-wrap: anywhere;
+  background: linear-gradient(120deg, #2b211c 0%, #7b371b 50%, #c65a1a 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.auth-heading p {
+  margin: 0 0 8px;
+  color: #c65a1a;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  text-transform: uppercase;
 }
 
 .auth-heading span {
   display: block;
-  margin: 8px 0 22px;
+  margin: 10px 0 24px;
   color: #71645b;
   line-height: 1.7;
 }
@@ -484,7 +795,10 @@ const switchMode = () => {
   display: grid;
   gap: 8px;
   color: #4d4038;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
   min-width: 0;
 }
 
@@ -493,9 +807,23 @@ const switchMode = () => {
   width: 100%;
 }
 
+.auth-form :deep(.el-input__wrapper) {
+  border-radius: 12px !important;
+  background: linear-gradient(180deg, #ffffff, #fffaf4) !important;
+  box-shadow: 0 0 0 1px rgba(234, 223, 212, 0.85), inset 0 1px 0 rgba(255, 255, 255, 0.6) !important;
+  transition: box-shadow 220ms ease;
+}
+
+.auth-form :deep(.el-input__wrapper.is-focus) {
+  box-shadow: 0 0 0 1px var(--brand-500), 0 0 0 4px rgba(233, 121, 26, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.6) !important;
+}
+
 .primary-action {
   width: 100%;
-  margin-top: 8px;
+  margin-top: 12px;
+  height: 48px !important;
+  font-size: 15px !important;
+  letter-spacing: 0.5px;
 }
 
 .text-action {
@@ -505,7 +833,15 @@ const switchMode = () => {
   color: #8a3d12;
   font-weight: 800;
   margin-top: 14px;
+  padding: 8px;
+  border-radius: 8px;
   cursor: pointer;
+  transition: background 220ms ease, color 220ms ease;
+}
+
+.text-action:hover {
+  background: rgba(233, 121, 26, 0.08);
+  color: #7b371b;
 }
 
 @media (max-width: 960px) {
@@ -513,49 +849,42 @@ const switchMode = () => {
     grid-template-columns: 1fr;
     align-content: start;
     gap: 14px;
-    background:
-      linear-gradient(180deg, rgba(58, 33, 23, 0.98) 0 38%, #fffaf4 38%),
-      linear-gradient(135deg, #fffaf4 0%, #fff2e3 54%, #f7e4d2 100%);
   }
 
   .auth-hero {
     min-height: auto;
-    gap: 12px;
-    padding: 12px 4px 0;
+    gap: 14px;
+    padding: 16px 8px 0;
   }
 
-  .brand-mark,
-  .brand-line .brand-mark {
-    width: 42px;
-    height: 42px;
+  .brand-mark-wrap {
+    width: 46px;
+    height: 46px;
+    padding: 2px;
   }
 
   .brand-line strong {
-    font-size: 18px;
+    font-size: 19px;
   }
 
-  .hero-copy p {
-    margin-bottom: 6px;
-  }
-
-  .hero-copy h1 {
-    font-size: clamp(28px, 7vw, 36px);
+  .hero-headline h1 {
+    font-size: clamp(30px, 7vw, 42px);
     line-height: 1.08;
   }
 
-  .hero-copy span {
-    margin-top: 10px;
+  .hero-sub {
     font-size: 14px;
-    line-height: 1.55;
+    line-height: 1.65;
   }
 
   .feature-grid {
-    display: none;
+    grid-template-columns: 1fr;
+    gap: 10px;
   }
 
   .auth-card {
     max-width: none;
-    padding: 18px;
+    padding: 20px;
   }
 
   .product-preview {
@@ -581,46 +910,46 @@ const switchMode = () => {
     padding: 28px;
   }
 
-  .hero-copy h1 {
-    font-size: clamp(32px, 4vw, 44px);
+  .hero-headline h1 {
+    font-size: clamp(34px, 4.4vw, 48px);
   }
 
   .feature-grid {
-    display: none;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 520px) {
   .auth-page {
     gap: 10px;
-    padding: 10px;
+    padding: 12px;
   }
 
   .auth-hero {
-    gap: 8px;
-    padding-top: 6px;
+    gap: 12px;
+    padding-top: 8px;
   }
 
   .brand-line {
     gap: 10px;
   }
 
-  .brand-mark,
-  .brand-line .brand-mark {
-    width: 36px;
-    height: 36px;
+  .brand-mark-wrap {
+    width: 40px;
+    height: 40px;
+    padding: 2px;
   }
 
   .brand-line small {
     display: none;
   }
 
-  .hero-copy h1 {
-    font-size: 28px;
+  .hero-headline h1 {
+    font-size: 30px;
     line-height: 1.06;
   }
 
-  .hero-copy span {
+  .hero-sub {
     display: none;
   }
 
@@ -629,7 +958,7 @@ const switchMode = () => {
   }
 
   .auth-card {
-    padding: 16px;
+    padding: 18px;
   }
 
   .auth-heading h2 {
@@ -644,7 +973,6 @@ const switchMode = () => {
   .auth-form {
     gap: 12px;
   }
-
 }
 
 @media (max-height: 760px) and (min-width: 961px) {
@@ -654,17 +982,12 @@ const switchMode = () => {
   }
 
   .auth-hero {
-    gap: 16px;
+    gap: 18px;
     padding: 24px;
   }
 
-  .hero-copy h1 {
+  .hero-headline h1 {
     font-size: clamp(32px, 4.2vw, 48px);
-  }
-
-  .hero-copy span {
-    margin-top: 12px;
-    line-height: 1.55;
   }
 
   .feature-grid {
@@ -683,16 +1006,27 @@ const switchMode = () => {
 
   .auth-hero {
     justify-content: start;
-    gap: 12px;
-    padding-top: 18px;
+    gap: 14px;
+    padding-top: 20px;
   }
 
-  .hero-copy span {
+  .hero-sub {
     display: none;
   }
 
   .auth-card {
-    padding: 20px;
+    padding: 22px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aurora-blob,
+  .brand-mark-glow,
+  .preview-ring::before,
+  .product-preview::after,
+  .hero-eyebrow .dot,
+  .hero-headline h1 em {
+    animation: none !important;
   }
 }
 </style>

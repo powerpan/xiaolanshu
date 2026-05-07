@@ -191,10 +191,18 @@ body,
   margin: 0;
   min-height: 100vh;
   font-family:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    sans-serif;
-  background: #fffaf4;
+    'Inter', 'Space Grotesk', ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', "Segoe UI", sans-serif;
   color: #2b211c;
+}
+
+html,
+body {
+  background:
+    radial-gradient(1200px 800px at 12% -8%, #fff4e3 0%, transparent 55%),
+    radial-gradient(900px 700px at 105% 18%, #ffe3bd 0%, transparent 60%),
+    radial-gradient(1100px 760px at 85% 110%, #f7e4d2 0%, transparent 60%),
+    linear-gradient(135deg, #fffaf4 0%, #fff2e3 48%, #f7e4d2 100%);
 }
 
 button,
@@ -204,6 +212,7 @@ select {
   font: inherit;
 }
 
+/* —— 音乐盘：保留磁带概念，叠加 conic 极光 + 光晕呼吸 —— */
 .music-disc {
   position: fixed;
   left: var(--music-x);
@@ -220,8 +229,8 @@ select {
   touch-action: none;
   user-select: none;
   isolation: isolate;
-  filter: drop-shadow(0 18px 30px rgba(79, 39, 21, 0.28));
-  transition: filter 180ms ease, transform 180ms ease;
+  filter: drop-shadow(0 18px 30px rgba(79, 39, 21, 0.32));
+  transition: filter 220ms ease, transform 220ms ease;
 }
 
 .music-disc::before,
@@ -233,26 +242,33 @@ select {
 }
 
 .music-disc::before {
-  inset: -6px;
+  inset: -10px;
   z-index: -2;
   background:
-    conic-gradient(from 120deg, rgba(255, 180, 84, 0), rgba(255, 180, 84, 0.74), rgba(233, 121, 26, 0), rgba(255, 241, 223, 0.62), rgba(255, 180, 84, 0));
-  opacity: 0.44;
-  filter: blur(1px);
+    conic-gradient(from 120deg,
+      rgba(255, 180, 84, 0),
+      rgba(255, 180, 84, 0.85),
+      rgba(233, 121, 26, 0.0),
+      rgba(255, 241, 223, 0.7),
+      rgba(255, 211, 154, 0.0),
+      rgba(233, 121, 26, 0.5),
+      rgba(255, 180, 84, 0));
+  opacity: 0.55;
+  filter: blur(2px);
   animation: disc-halo 5s linear infinite;
 }
 
 .music-disc::after {
-  inset: -10px;
+  inset: -14px;
   z-index: -3;
-  border: 1px solid rgba(233, 121, 26, 0.18);
+  border: 1px solid rgba(233, 121, 26, 0.24);
   opacity: 0;
 }
 
 .music-disc:hover,
 .music-disc.playing {
-  filter: drop-shadow(0 18px 32px rgba(233, 121, 26, 0.32));
-  transform: translateY(-1px);
+  filter: drop-shadow(0 22px 36px rgba(233, 121, 26, 0.42));
+  transform: translateY(-2px);
 }
 
 .music-disc.dragging {

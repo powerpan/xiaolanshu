@@ -33,11 +33,17 @@ const emit = defineEmits(['open-view'])
 
 <template>
   <aside class="sidebar">
+    <div class="sidebar-aurora" aria-hidden="true"></div>
+    <div class="sidebar-grid" aria-hidden="true"></div>
+
     <div class="brand">
-      <img class="brand-logo" :src="yueluLogo" alt="跃鹿运动标识">
-      <div>
-        <strong>跃鹿运动</strong>
-        <small>{{ isAdmin ? '管理控制台' : '训练、饮食与内容' }}</small>
+      <span class="brand-logo-wrap">
+        <img class="brand-logo" :src="yueluLogo" alt="跃鹿运动标识">
+        <i class="brand-logo-glow" aria-hidden="true"></i>
+      </span>
+      <div class="brand-text">
+        <strong>跃鹿<em>运动</em></strong>
+        <small>{{ isAdmin ? '管理控制台' : 'Yuelu Fitness OS' }}</small>
       </div>
     </div>
 
@@ -50,16 +56,18 @@ const emit = defineEmits(['open-view'])
           :class="{ active: activeView === item.key }"
           @click="emit('open-view', item.key)"
         >
+          <span class="nav-pill" aria-hidden="true"></span>
           <el-icon><component :is="item.icon" /></el-icon>
-          <span>{{ item.label }}</span>
+          <span class="nav-label">{{ item.label }}</span>
         </button>
       </section>
     </nav>
 
     <div class="sidebar-user">
-      <span>{{ isAdmin ? 'ADMIN' : 'USER' }}</span>
+      <span class="user-tag">{{ isAdmin ? 'ADMIN' : 'USER' }}</span>
       <strong>{{ displayName }}</strong>
       <small>{{ isAdmin ? '内容、动作库与账号管理' : `${goalText} · 每周 ${weeklyFrequency || 0} 次` }}</small>
+      <i class="user-spark" aria-hidden="true"></i>
     </div>
   </aside>
 </template>
@@ -74,44 +82,150 @@ const emit = defineEmits(['open-view'])
   height: 100vh;
   padding: 24px;
   background:
-    linear-gradient(160deg, rgba(58, 33, 23, 0.98) 0%, rgba(114, 49, 24, 0.98) 54%, rgba(169, 77, 26, 0.96) 100%),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.06), transparent 34%);
+    linear-gradient(180deg, rgba(58, 33, 23, 0.94) 0%, rgba(73, 32, 19, 0.96) 36%, rgba(122, 55, 27, 0.94) 78%, rgba(166, 71, 22, 0.92) 100%);
   color: #fff;
   display: flex;
   flex-direction: column;
   gap: clamp(14px, 3vh, 26px);
   overflow: hidden;
-  box-shadow: 18px 0 46px rgba(78, 44, 26, 0.16);
+  isolation: isolate;
+  border-right: 1px solid rgba(255, 211, 154, 0.12);
+  box-shadow:
+    18px 0 46px rgba(78, 44, 26, 0.22),
+    inset -1px 0 0 rgba(255, 246, 234, 0.06);
+}
+
+/* —— 极光层：缓慢漂移的橙色 conic 光晕 —— */
+.sidebar-aurora {
+  position: absolute;
+  inset: -40% -30% auto -30%;
+  height: 78%;
+  z-index: -2;
+  background:
+    conic-gradient(from 200deg at 30% 40%,
+      rgba(255, 180, 84, 0) 0deg,
+      rgba(255, 180, 84, 0.55) 70deg,
+      rgba(233, 121, 26, 0.18) 160deg,
+      rgba(255, 246, 234, 0.4) 230deg,
+      rgba(255, 180, 84, 0) 360deg);
+  filter: blur(48px);
+  opacity: 0.85;
+  mix-blend-mode: screen;
+  animation: sidebar-drift 18s linear infinite;
+}
+
+/* —— 网格底纹 —— */
+.sidebar-grid {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.04) 0 1px, transparent 1px 56px),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 56px),
+    radial-gradient(420px 320px at 100% 110%, rgba(255, 211, 154, 0.18), transparent 70%);
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 1) 30%, rgba(0, 0, 0, 0.35) 100%);
+  pointer-events: none;
+}
+
+@keyframes sidebar-drift {
+  to { transform: rotate(360deg); }
 }
 
 .brand {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
+  min-width: 0;
+}
+
+.brand-logo-wrap {
+  position: relative;
+  isolation: isolate;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 62px;
+  height: 62px;
+  border-radius: 18px;
+  background:
+    linear-gradient(135deg, rgba(255, 244, 227, 0.98), rgba(255, 211, 154, 0.92) 58%, rgba(255, 180, 84, 0.9));
+  padding: 4px;
+  box-shadow:
+    0 14px 30px rgba(233, 121, 26, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.65);
 }
 
 .brand-logo {
-  width: 48px;
-  height: 48px;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
   display: block;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.94);
-  object-fit: cover;
-  object-position: center 54%;
-  box-shadow: 0 12px 28px rgba(233, 121, 26, 0.28);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.96);
+  object-fit: contain;
+  object-position: center;
+  padding: 5px;
 }
 
-.brand strong,
-.brand small {
+.brand-logo-glow {
+  position: absolute;
+  inset: -5px;
+  border-radius: 22px;
+  z-index: -1;
+  background: var(--grad-aurora);
+  filter: blur(8px);
+  opacity: 0.5;
+  pointer-events: none;
+  animation: ring-spin 8s linear infinite;
+}
+
+.brand-text {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.brand-text strong,
+.brand-text small {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.brand-text strong,
+.brand-text small {
   display: block;
 }
 
-.brand small {
-  color: rgba(255, 255, 255, 0.64);
-  margin-top: 2px;
+.brand-text strong {
+  font-size: 19px;
+  font-weight: 900;
+  letter-spacing: 0.6px;
+  color: #fff;
+}
+
+.brand-text strong em {
+  font-style: normal;
+  background: linear-gradient(120deg, #ffe3bd 0%, #ffb454 50%, #fff4e3 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  margin-left: 4px;
+  letter-spacing: 1px;
+}
+
+.brand-text small {
+  margin-top: 3px;
+  color: rgba(255, 246, 234, 0.6);
+  font-size: 11px;
+  letter-spacing: 1.4px;
+  font-weight: 700;
+  text-transform: uppercase;
 }
 
 .nav-list {
+  position: relative;
   min-height: 0;
   overflow: hidden;
   display: grid;
@@ -121,65 +235,166 @@ const emit = defineEmits(['open-view'])
 
 .nav-list p {
   margin: 0 0 clamp(4px, 0.8vh, 8px);
-  color: rgba(255, 255, 255, 0.48);
-  font-size: 12px;
+  color: rgba(255, 246, 234, 0.42);
+  font-size: 11px;
   font-weight: 800;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
 }
 
 .nav-list button {
   position: relative;
   width: 100%;
-  min-height: clamp(34px, 5vh, 42px);
-  padding: 0 12px;
+  min-height: clamp(36px, 5vh, 42px);
+  padding: 0 14px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 10px;
   background: transparent;
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(255, 246, 234, 0.78);
   text-align: left;
-  font-weight: 800;
+  font-weight: 700;
+  font-size: 14px;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   overflow: hidden;
-  transition: transform 180ms ease, background 180ms ease, color 180ms ease;
+  transition: transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1), color 220ms ease;
+  isolation: isolate;
 }
 
+/* —— 滑块 pill：active/hover 时充能 —— */
+.nav-pill {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(255, 211, 154, 0.18), rgba(255, 180, 84, 0.08));
+  border: 1px solid rgba(255, 211, 154, 0);
+  opacity: 0;
+  transform: translateX(-6px) scale(0.96);
+  transition: opacity 220ms ease, transform 220ms ease, border-color 220ms ease, background 220ms ease;
+}
+
+/* —— 流光横扫 —— */
 .nav-list button::after {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.18), transparent);
-  transform: translateX(-120%);
-  transition: transform 420ms ease;
+  background: linear-gradient(100deg, transparent 30%, rgba(255, 255, 255, 0.22), transparent 70%);
+  transform: translateX(-130%);
+  transition: transform 520ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  pointer-events: none;
 }
 
-.nav-list button.active,
 .nav-list button:hover {
-  background: rgba(255, 255, 255, 0.12);
   color: #fff;
-  transform: translateX(4px);
+  transform: translateX(2px);
 }
 
-.nav-list button.active::after,
+.nav-list button:hover .nav-pill {
+  opacity: 1;
+  transform: translateX(0) scale(1);
+  border-color: rgba(255, 211, 154, 0.35);
+}
+
 .nav-list button:hover::after {
-  transform: translateX(120%);
+  transform: translateX(130%);
 }
 
+.nav-list button.active {
+  color: #fff;
+  transform: translateX(0);
+}
+
+.nav-list button.active .nav-pill {
+  opacity: 1;
+  transform: translateX(0) scale(1);
+  background:
+    linear-gradient(135deg, rgba(255, 211, 154, 0.32), rgba(233, 121, 26, 0.22)),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0));
+  border-color: rgba(255, 211, 154, 0.55);
+  box-shadow:
+    0 12px 24px rgba(166, 71, 22, 0.32),
+    inset 0 1px 0 rgba(255, 246, 234, 0.4);
+}
+
+/* —— active 左侧高光指示 —— */
+.nav-list button.active::before {
+  content: "";
+  position: absolute;
+  left: 6px;
+  top: 50%;
+  width: 4px;
+  height: 18px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #ffe3bd, #ffb454, #e9791a);
+  box-shadow: 0 0 12px rgba(255, 211, 154, 0.85);
+  transform: translateY(-50%);
+}
+
+.nav-list button .el-icon {
+  font-size: 17px;
+  flex-shrink: 0;
+  filter: drop-shadow(0 1px 0 rgba(43, 33, 28, 0.35));
+}
+
+.nav-list button.active .el-icon {
+  color: #fff4e3;
+}
+
+.nav-label {
+  min-width: 0;
+}
+
+/* —— 用户卡 —— */
 .sidebar-user {
+  position: relative;
   margin-top: auto;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 8px;
-  padding: 14px;
+  border-radius: 14px;
+  padding: 16px;
   display: grid;
   gap: 4px;
-  background: rgba(255, 255, 255, 0.06);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.04));
+  border: 1px solid rgba(255, 211, 154, 0.18);
+  backdrop-filter: blur(10px);
+  overflow: hidden;
+  box-shadow: inset 0 1px 0 rgba(255, 246, 234, 0.18);
 }
 
-.sidebar-user span,
+.user-tag {
+  width: fit-content;
+  border-radius: 999px;
+  padding: 3px 9px;
+  background: linear-gradient(120deg, rgba(255, 211, 154, 0.32), rgba(233, 121, 26, 0.32));
+  color: #fff4e3;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 2px;
+}
+
+.sidebar-user strong {
+  color: #fff;
+  font-size: 16px;
+  letter-spacing: 0.2px;
+}
+
 .sidebar-user small {
-  color: rgba(255, 255, 255, 0.64);
+  color: rgba(255, 246, 234, 0.62);
   font-size: 12px;
+}
+
+.user-spark {
+  position: absolute;
+  right: -30px;
+  top: -30px;
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 211, 154, 0.55), transparent 70%);
+  filter: blur(8px);
+  pointer-events: none;
 }
 
 @media (max-width: 820px) {
@@ -190,22 +405,37 @@ const emit = defineEmits(['open-view'])
     height: auto;
     width: 100%;
     min-width: 0;
-    padding: 10px 12px;
+    padding: 12px 14px;
     gap: 10px;
     overflow: visible;
-    box-shadow: 0 10px 30px rgba(43, 33, 28, 0.16);
+    box-shadow: 0 10px 30px rgba(43, 33, 28, 0.22);
+    border-right: 0;
+    border-bottom: 1px solid rgba(255, 211, 154, 0.14);
+  }
+
+  .sidebar-aurora {
+    inset: -50% -30% auto -30%;
+    height: 200%;
   }
 
   .brand {
     gap: 10px;
   }
 
-  .brand-logo {
-    width: 38px;
-    height: 38px;
+  .brand-logo-wrap {
+    width: 56px;
+    height: 56px;
+    padding: 4px;
+    border-radius: 16px;
   }
 
-  .brand small,
+  .brand-logo-glow {
+    inset: -4px;
+    border-radius: 20px;
+    filter: blur(6px);
+  }
+
+  .brand-text small,
   .nav-list p,
   .sidebar-user {
     display: none;
@@ -259,12 +489,12 @@ const emit = defineEmits(['open-view'])
     gap: 12px;
   }
 
-  .brand-logo {
-    width: 40px;
-    height: 40px;
+  .brand-logo-wrap {
+    width: 52px;
+    height: 52px;
   }
 
-  .brand small,
+  .brand-text small,
   .sidebar-user small {
     display: none;
   }

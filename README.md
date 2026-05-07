@@ -43,12 +43,17 @@ macOS/Linux 在项目根目录执行：
 - 后端：`http://127.0.0.1:8080`
 - 前端：`http://127.0.0.1:5173`
 
-日志写入项目内 `.dev-logs` 目录。需要停止服务时，在启动脚本所在终端按 `Ctrl+C`。
+日志写入项目内 `.dev-logs` 目录。需要停止服务时，在启动脚本所在终端按 `Ctrl+C`，或另开终端执行：
+
+```sh
+./stop-dev.command
+```
 
 如果提示脚本没有执行权限，先执行：
 
 ```sh
 chmod +x start-dev.command
+chmod +x stop-dev.command
 ```
 
 Windows 推荐使用两个 PowerShell 窗口分别启动后端和前端，完整步骤见：

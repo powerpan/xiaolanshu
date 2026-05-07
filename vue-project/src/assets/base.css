@@ -1,5 +1,9 @@
-/* Project color palette */
+/* =============================================================
+ * 跃鹿运动 · 设计基线
+ * 主色 (Ember Orange) 不变，强化"暖色阳光 + 低调金属"质感
+ * ============================================================= */
 :root {
+  /* —— 基础灰阶 —— */
   --vt-c-white: #ffffff;
   --vt-c-white-soft: #fffaf4;
   --vt-c-white-mute: #f3ece4;
@@ -21,7 +25,7 @@
   --vt-c-text-dark-2: rgba(235, 235, 235, 0.64);
 }
 
-/* semantic color variables for this project */
+/* —— 语义令牌 + 设计系统令牌 —— */
 :root {
   --color-background: var(--vt-c-white);
   --color-background-soft: var(--vt-c-white-soft);
@@ -33,14 +37,52 @@
   --color-heading: var(--vt-c-text-light-1);
   --color-text: var(--vt-c-text-light-1);
 
-  --el-color-primary: #e9791a;
-  --el-color-primary-light-3: #f59e0b;
-  --el-color-primary-light-5: #ffb454;
-  --el-color-primary-light-7: #ffd39a;
-  --el-color-primary-light-8: #ffe3bd;
-  --el-color-primary-light-9: #fff1df;
-  --el-color-primary-dark-2: #a64716;
-  --el-border-radius-base: 8px;
+  /* —— 品牌主色梯度（保持原色） —— */
+  --brand-50: #fff4e3;
+  --brand-100: #ffe3bd;
+  --brand-200: #ffd39a;
+  --brand-300: #ffb454;
+  --brand-400: #f59e0b;
+  --brand-500: #e9791a; /* 主色 */
+  --brand-600: #c65a1a;
+  --brand-700: #a64716;
+  --brand-800: #7b371b;
+  --brand-900: #3a2117;
+
+  /* —— 高级渐变 —— */
+  --grad-ember: linear-gradient(135deg, #ffd39a 0%, #ffb454 28%, #e9791a 60%, #a64716 100%);
+  --grad-ember-soft: linear-gradient(135deg, #fff4e3 0%, #ffe3bd 50%, #ffd39a 100%);
+  --grad-noir: linear-gradient(140deg, #2b211c 0%, #3a2117 38%, #7b371b 80%, #c65a1a 100%);
+  --grad-aurora: conic-gradient(from 120deg at 50% 50%,
+      rgba(255, 211, 154, 0.0) 0deg,
+      rgba(255, 180, 84, 0.55) 80deg,
+      rgba(233, 121, 26, 0.35) 160deg,
+      rgba(255, 246, 234, 0.55) 240deg,
+      rgba(255, 211, 154, 0.0) 360deg);
+  --grad-text: linear-gradient(120deg, #3a2117 0%, #7b371b 35%, #e9791a 78%, #ffb454 100%);
+
+  /* —— 投影 —— */
+  --shadow-soft: 0 14px 40px rgba(84, 62, 48, 0.06);
+  --shadow-lift: 0 22px 50px rgba(84, 62, 48, 0.12);
+  --shadow-ember: 0 26px 60px rgba(233, 121, 26, 0.22);
+  --shadow-ink: 0 28px 64px rgba(43, 33, 28, 0.32);
+  --shadow-inset-glass: inset 0 1px 0 rgba(255, 255, 255, 0.42), inset 0 -1px 0 rgba(43, 33, 28, 0.04);
+
+  /* —— 玻璃质感 —— */
+  --glass-bg: rgba(255, 255, 255, 0.72);
+  --glass-bg-strong: rgba(255, 255, 255, 0.86);
+  --glass-border: rgba(255, 255, 255, 0.55);
+  --glass-blur: blur(18px) saturate(1.18);
+
+  /* —— Element Plus 主色绑定 —— */
+  --el-color-primary: var(--brand-500);
+  --el-color-primary-light-3: var(--brand-400);
+  --el-color-primary-light-5: var(--brand-300);
+  --el-color-primary-light-7: var(--brand-200);
+  --el-color-primary-light-8: var(--brand-100);
+  --el-color-primary-light-9: var(--brand-50);
+  --el-color-primary-dark-2: var(--brand-700);
+  --el-border-radius-base: 10px;
 
   --section-gap: 160px;
 }
@@ -67,29 +109,92 @@
   font-weight: normal;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   min-height: 100vh;
   color: var(--color-text);
   background: var(--color-background);
-  transition:
-    color 0.5s,
-    background-color 0.5s;
+  transition: color 0.5s, background-color 0.5s;
   line-height: 1.6;
   font-family:
-    Inter,
-    -apple-system,
-    BlinkMacSystemFont,
-    'Segoe UI',
-    Roboto,
-    Oxygen,
-    Ubuntu,
-    Cantarell,
-    'Fira Sans',
-    'Droid Sans',
-    'Helvetica Neue',
-    sans-serif;
+    'Inter', 'Space Grotesk', -apple-system, BlinkMacSystemFont,
+    'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei',
+    'Helvetica Neue', sans-serif;
+  font-feature-settings: 'cv11', 'ss01', 'ss03';
   font-size: 15px;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* —— 文本选中态 —— */
+::selection {
+  background: rgba(233, 121, 26, 0.28);
+  color: #3a2117;
+}
+
+/* —— 全局滚动条 —— */
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(233, 121, 26, 0.55), rgba(166, 71, 22, 0.55));
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(233, 121, 26, 0.85), rgba(166, 71, 22, 0.85));
+  background-clip: padding-box;
+  border: 2px solid transparent;
+}
+
+/* —— 全局焦点环 —— */
+:focus-visible {
+  outline: 2px solid var(--brand-500);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* —— 工具类：渐变文字 / 玻璃 / 流光 —— */
+.text-gradient {
+  background: var(--grad-text);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.glass-surface {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-soft), var(--shadow-inset-glass);
+}
+
+/* —— 通用动画 —— */
+@keyframes float-slow {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(0, -18px, 0) scale(1.02); }
+}
+
+@keyframes shimmer-x {
+  0% { transform: translateX(-100%); }
+  60%, 100% { transform: translateX(110%); }
+}
+
+@keyframes ring-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 0.95; }
 }
