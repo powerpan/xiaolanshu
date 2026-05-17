@@ -1,6 +1,6 @@
 # Windows 部署操作流程
 
-本文档给 Windows 电脑上的同事使用，目标是从拿到仓库文件开始，把跃鹿运动健身指导系统在本机跑起来，并完成基础验证。
+本文档给 Windows 电脑上的同事使用，目标是从拿到仓库文件开始，把小蓝鼠项目在本机跑起来，并完成基础验证。
 
 ## 1. 准备环境
 
@@ -302,7 +302,7 @@ vue-project\src\services\api.js
 交给同事前建议确认：
 
 - 仓库不包含 `node_modules`、`dist`、`target`、`.m2`、`fitnessGuidance\data`。
-- `vue-project\src\assets\yuelu-logo.png` 存在。
+- 前端左上角显示小蓝鼠纯色品牌标识，并保持原有暖色调。
 - `vue-project\src\assets\橙色制高点.mp3` 存在。
 - `fitnessGuidance\uploads\exercise-guides\.gitkeep` 存在。
 - `npm run build` 能通过。

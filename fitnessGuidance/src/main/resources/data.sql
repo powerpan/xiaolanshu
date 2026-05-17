@@ -19,7 +19,7 @@ MERGE INTO nutritionpreferences (
 MERGE INTO notices (
     id, title, content, author, noticetime
 ) KEY(id) VALUES
-(1, '欢迎来到跃鹿运动', '这里会同步训练提醒、产品更新和健康建议。你可以先完善训练目标、每周频率、可用器材和当前水平，再进入训练计划查看今日安排。', 'admin', CURRENT_TIMESTAMP),
+(1, '欢迎来到小蓝鼠', '这里会同步训练提醒、产品更新和健康建议。你可以先完善训练目标、每周频率、可用器材和当前水平，再进入训练计划查看今日安排。', 'admin', CURRENT_TIMESTAMP),
 (2, '本周训练建议：先稳定，再加量', '如果你刚开始恢复训练，本周优先完成计划内次数，不需要追求额外加练。每次训练前做 5 到 8 分钟热身，训练后记录状态，连续两周稳定后再逐步增加组数。', 'admin', DATEADD('DAY', -1, CURRENT_TIMESTAMP));
 
 MERGE INTO articles (

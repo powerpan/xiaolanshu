@@ -1,6 +1,4 @@
 <script setup>
-import yueluLogo from '@/assets/yuelu-logo.png'
-
 defineProps({
   navGroups: {
     type: Array,
@@ -38,12 +36,12 @@ const emit = defineEmits(['open-view'])
 
     <div class="brand">
       <span class="brand-logo-wrap">
-        <img class="brand-logo" :src="yueluLogo" alt="跃鹿运动标识">
+        <span class="brand-logo" role="img" aria-label="小蓝鼠标识">小</span>
         <i class="brand-logo-glow" aria-hidden="true"></i>
       </span>
       <div class="brand-text">
-        <strong>跃鹿<em>运动</em></strong>
-        <small>{{ isAdmin ? '管理控制台' : 'Yuelu Fitness OS' }}</small>
+        <strong>小蓝鼠</strong>
+        <small>{{ isAdmin ? '管理控制台' : 'Xiaolanshu Fitness OS' }}</small>
       </div>
     </div>
 
@@ -81,8 +79,7 @@ const emit = defineEmits(['open-view'])
   width: 280px;
   height: 100vh;
   padding: 24px;
-  background:
-    linear-gradient(180deg, rgba(58, 33, 23, 0.94) 0%, rgba(73, 32, 19, 0.96) 36%, rgba(122, 55, 27, 0.94) 78%, rgba(166, 71, 22, 0.92) 100%);
+  background: #3a2117;
   color: #fff;
   display: flex;
   flex-direction: column;
@@ -95,7 +92,7 @@ const emit = defineEmits(['open-view'])
     inset -1px 0 0 rgba(255, 246, 234, 0.06);
 }
 
-/* —— 极光层：缓慢漂移的橙色 conic 光晕 —— */
+/* —— 纯色品牌侧栏，不再使用图片或光晕背景 —— */
 .sidebar-aurora {
   position: absolute;
   inset: -40% -30% auto -30%;
@@ -112,9 +109,10 @@ const emit = defineEmits(['open-view'])
   opacity: 0.85;
   mix-blend-mode: screen;
   animation: sidebar-drift 18s linear infinite;
+  display: none;
 }
 
-/* —— 网格底纹 —— */
+/* —— 背景底纹已关闭，保持纯色 —— */
 .sidebar-grid {
   position: absolute;
   inset: 0;
@@ -125,6 +123,7 @@ const emit = defineEmits(['open-view'])
     radial-gradient(420px 320px at 100% 110%, rgba(255, 211, 154, 0.18), transparent 70%);
   mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 1) 30%, rgba(0, 0, 0, 0.35) 100%);
   pointer-events: none;
+  display: none;
 }
 
 @keyframes sidebar-drift {
@@ -148,8 +147,7 @@ const emit = defineEmits(['open-view'])
   width: 62px;
   height: 62px;
   border-radius: 18px;
-  background:
-    linear-gradient(135deg, rgba(255, 244, 227, 0.98), rgba(255, 211, 154, 0.92) 58%, rgba(255, 180, 84, 0.9));
+  background: #fff4e3;
   padding: 4px;
   box-shadow:
     0 14px 30px rgba(233, 121, 26, 0.42),
@@ -161,12 +159,14 @@ const emit = defineEmits(['open-view'])
   height: 100%;
   max-width: 100%;
   max-height: 100%;
-  display: block;
+  display: grid;
+  place-items: center;
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.96);
-  object-fit: contain;
-  object-position: center;
-  padding: 5px;
+  background: #e9791a;
+  color: #fff;
+  font-size: 26px;
+  font-weight: 900;
+  line-height: 1;
 }
 
 .brand-logo-glow {
@@ -174,9 +174,9 @@ const emit = defineEmits(['open-view'])
   inset: -5px;
   border-radius: 22px;
   z-index: -1;
-  background: var(--grad-aurora);
+  background: rgba(233, 121, 26, 0.55);
   filter: blur(8px);
-  opacity: 0.5;
+  opacity: 0.42;
   pointer-events: none;
   animation: ring-spin 8s linear infinite;
 }

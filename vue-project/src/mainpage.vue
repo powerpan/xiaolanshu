@@ -2843,39 +2843,18 @@ onMounted(() => {
   width: 100%;
   display: block;
   padding-left: 280px;
-  background: transparent;
+  background: #fffaf4;
   color: #2b211c;
   overflow-x: hidden;
 }
 
 .workspace-shell::before {
-  content: "";
-  position: fixed;
-  right: clamp(-140px, -8vw, -56px);
-  bottom: clamp(-130px, -10vw, -64px);
-  z-index: 0;
-  width: min(48vw, 620px);
-  min-width: 320px;
-  aspect-ratio: 2 / 3;
-  background: url('./assets/yuelu-logo.png') center / contain no-repeat;
-  opacity: 0.08;
-  filter: drop-shadow(0 30px 60px rgba(122, 55, 27, 0.18));
-  pointer-events: none;
+  content: none;
 }
 
-/* —— 主区域光斑：随滚动悬停在右上 —— */
+/* —— 主区域保持纯色背景 —— */
 .workspace-shell::after {
-  content: "";
-  position: fixed;
-  top: -180px;
-  right: -120px;
-  z-index: 0;
-  width: 520px;
-  height: 520px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 211, 154, 0.55), transparent 65%);
-  filter: blur(20px);
-  pointer-events: none;
+  content: none;
 }
 
 .workspace-shell > :deep(.sidebar) {
@@ -2895,9 +2874,7 @@ onMounted(() => {
   width: 280px;
   height: 100vh;
   padding: 24px;
-  background:
-    linear-gradient(160deg, rgba(58, 33, 23, 0.98) 0%, rgba(114, 49, 24, 0.98) 54%, rgba(169, 77, 26, 0.96) 100%),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.06), transparent 34%);
+  background: #3a2117;
   color: #fff;
   display: flex;
   flex-direction: column;
@@ -2918,8 +2895,8 @@ onMounted(() => {
   display: grid;
   place-items: center;
   border-radius: 8px;
-  background: linear-gradient(135deg, #fff1d1 0%, #ffb454 58%, #e9791a 100%);
-  color: #2b211c;
+  background: #e9791a;
+  color: #fff;
   font-weight: 900;
   box-shadow: 0 12px 28px rgba(233, 121, 26, 0.28);
 }

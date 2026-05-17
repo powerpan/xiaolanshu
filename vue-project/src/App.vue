@@ -198,11 +198,7 @@ body,
 
 html,
 body {
-  background:
-    radial-gradient(1200px 800px at 12% -8%, #fff4e3 0%, transparent 55%),
-    radial-gradient(900px 700px at 105% 18%, #ffe3bd 0%, transparent 60%),
-    radial-gradient(1100px 760px at 85% 110%, #f7e4d2 0%, transparent 60%),
-    linear-gradient(135deg, #fffaf4 0%, #fff2e3 48%, #f7e4d2 100%);
+  background: #fffaf4;
 }
 
 button,

@@ -12,7 +12,6 @@ import {
   TrendCharts,
   User,
 } from '@element-plus/icons-vue'
-import yueluLogo from './assets/yuelu-logo.png'
 import api, { formBody } from './services/api'
 
 const router = useRouter()
@@ -22,7 +21,7 @@ const password = ref('')
 const loading = ref(false)
 
 const isLogin = () => mode.value === 'login'
-const authTitle = computed(() => (isLogin() ? '欢迎回到跃鹿运动' : '创建训练账号'))
+const authTitle = computed(() => (isLogin() ? '欢迎回到小蓝鼠' : '创建训练账号'))
 const authSubtitle = computed(() => (
   isLogin()
     ? '继续查看训练计划、动作指导和最近打卡复盘。'
@@ -109,12 +108,12 @@ const switchMode = () => {
     <section class="auth-hero">
       <div class="brand-line">
         <span class="brand-mark-wrap">
-          <img class="brand-mark" :src="yueluLogo" alt="跃鹿运动标识">
+          <span class="brand-mark" role="img" aria-label="小蓝鼠标识">小</span>
           <i class="brand-mark-glow" aria-hidden="true"></i>
         </span>
         <div>
-          <strong>跃鹿<em>运动</em></strong>
-          <small>Yuelu Fitness Planning OS · v2.0</small>
+          <strong>小蓝鼠</strong>
+          <small>Xiaolanshu Fitness Planning OS · v2.0</small>
         </div>
       </div>
 
@@ -218,17 +217,14 @@ const switchMode = () => {
   isolation: isolate;
 }
 
-/* —— 极光背景层 —— */
+/* —— 纯色背景层 —— */
 .auth-aurora {
   position: absolute;
   inset: 0;
   z-index: -2;
   overflow: hidden;
   pointer-events: none;
-  background:
-    radial-gradient(circle at 22% 25%, #4a2615 0%, transparent 55%),
-    radial-gradient(circle at 75% 80%, #c65a1a 0%, transparent 55%),
-    linear-gradient(135deg, #1a0e08 0%, #2b1610 40%, #3a2117 100%);
+  background: #1a0e08;
 }
 
 .aurora-blob {
@@ -236,6 +232,7 @@ const switchMode = () => {
   border-radius: 50%;
   filter: blur(70px);
   mix-blend-mode: screen;
+  display: none;
 }
 
 .aurora-a {
@@ -272,6 +269,7 @@ const switchMode = () => {
     repeating-linear-gradient(0deg, rgba(255, 246, 234, 0.04) 0 1px, transparent 1px 64px),
     repeating-linear-gradient(90deg, rgba(255, 246, 234, 0.035) 0 1px, transparent 1px 64px);
   mask-image: radial-gradient(circle at 50% 50%, rgba(0, 0, 0, 1) 30%, transparent 80%);
+  display: none;
 }
 
 @keyframes aurora-float-a {
@@ -285,17 +283,7 @@ const switchMode = () => {
 }
 
 .auth-page::before {
-  content: "";
-  position: absolute;
-  left: clamp(18px, 6vw, 92px);
-  bottom: clamp(-110px, -8vw, -42px);
-  width: min(54vw, 660px);
-  aspect-ratio: 2 / 3;
-  background: url('./assets/yuelu-logo.png') center / contain no-repeat;
-  opacity: 0.08;
-  filter: brightness(1.4) saturate(0.6);
-  pointer-events: none;
-  z-index: -1;
+  content: none;
 }
 
 .auth-hero {
@@ -332,7 +320,7 @@ const switchMode = () => {
   height: 56px;
   border-radius: 14px;
   padding: 3px;
-  background: linear-gradient(135deg, #fff4e3, #ffd39a 60%, #ffb454);
+  background: #fff4e3;
   box-shadow:
     0 16px 32px rgba(233, 121, 26, 0.42),
     inset 0 1px 0 rgba(255, 255, 255, 0.65);
@@ -345,19 +333,22 @@ const switchMode = () => {
   max-width: 100%;
   max-height: 100%;
   border-radius: calc(14px - 3px);
-  display: block;
-  background: rgba(255, 255, 255, 0.96);
-  object-fit: cover;
-  object-position: center 54%;
+  display: grid;
+  place-items: center;
+  background: #e9791a;
+  color: #fff;
+  font-size: 24px;
+  font-weight: 900;
+  line-height: 1;
 }
 
 .brand-mark-glow {
   position: absolute;
   inset: -6px;
   border-radius: 20px;
-  background: var(--grad-aurora);
+  background: rgba(233, 121, 26, 0.55);
   filter: blur(10px);
-  opacity: 0.6;
+  opacity: 0.46;
   z-index: -1;
   pointer-events: none;
   animation: ring-spin 8s linear infinite;
